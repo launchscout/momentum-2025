@@ -1,0 +1,40 @@
+<head>
+  <title>Hello World</title>
+  <script async src="https://ga.jspm.io/npm:es-module-shims@2.0.10/dist/es-module-shims.js" crossorigin="anonymous"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@bytecodealliance/preview2-shim/cli": "https://ga.jspm.io/npm:@bytecodealliance/preview2-shim@0.17.2/lib/browser/cli.js",
+      "@bytecodealliance/preview2-shim/clocks": "https://ga.jspm.io/npm:@bytecodealliance/preview2-shim@0.17.2/lib/browser/clocks.js",
+      "@bytecodealliance/preview2-shim/filesystem": "https://ga.jspm.io/npm:@bytecodealliance/preview2-shim@0.17.2/lib/browser/filesystem.js",
+      "@bytecodealliance/preview2-shim/io": "https://ga.jspm.io/npm:@bytecodealliance/preview2-shim@0.17.2/lib/browser/io.js",
+      "@bytecodealliance/preview2-shim/random": "https://ga.jspm.io/npm:@bytecodealliance/preview2-shim@0.17.2/lib/browser/random.js"
+    },
+    "scopes": {
+      "./": {
+        "fs/promises": "https://ga.jspm.io/npm:@jspm/core@2.1.0/nodelibs/browser/fs/promises.js"
+      }
+    }
+  }
+  </script>
+  <script type="module">
+    import { greet } from './hello-world-go/hello-world-go.js';
+    import { greet as greetRust } from './hello-world/hello_world.js';
+    if (document.readyState === 'complete') {
+      document.getElementById('go-greeting').innerHTML = greet("Werld");
+      document.getElementById('rust-greeting').innerHTML = greetRust("Werld");
+    } else {
+      window.addEventListener('load', () => {
+        document.getElementById('go-greeting').innerHTML = greet("Wurld");
+        document.getElementById('rust-greeting').innerHTML = greetRust("Wurld");
+      });
+    }
+
+  </script>
+</head>
+
+<body>
+  <h1 id="go-greeting"></h1>
+  <h1 id="rust-greeting"></h1>
+</body>
+

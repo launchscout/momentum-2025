@@ -1,0 +1,7 @@
+package component:hello-world;
+
+/// An example world for the component to target.
+world example {
+  include wasi:cli/imports@0.2.0;
+  export greet: func(greetee: string) -> string;
+}

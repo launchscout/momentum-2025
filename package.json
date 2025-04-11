@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "start": "live-server .",
+    "slides": "marp index.md -o index.html",
+    "watch": "marp index.md -o index.html --watch",
+    "transpile-go": "jco transpile hello-world-go/hello-world-go.wasm -o hello-world-go/"
+  },
+  "dependencies": {
+    "@bytecodealliance/jco": "^1.10.2",
+    "@bytecodealliance/preview2-shim": "^0.17.2",
+    "@marp-team/marp-cli": "^4.1.2",
+    "jspm": "^3.3.4",
+    "live-server": "^1.2.2"
+  }
+}
