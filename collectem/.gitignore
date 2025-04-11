@@ -1,3 +1,4 @@
 .edgee/
 dc_component.wasm
 internal/
+target

@@ -1,0 +1,15 @@
+[package]
+name = "composed-hello-world"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wit-bindgen-rt = { version = "0.41.0", features = ["bitflags"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component]
+package = "component:composed-hello-world"
+
+[package.metadata.component.dependencies]

@@ -85,10 +85,10 @@ style: |
 
 # WebAssembly Components
 - Higher-level abstraction on top of core WebAssembly
-- Enables language-agnostic interfaces
-- Standardized way to share complex data between modules
-- Simplifies interoperability between programming languages
-- Better ergonomics for developers
+- Enables language-agnostic type system
+- Establishes canonical ABI
+  - how to map high level types to memory
+- Enables language-agnostic communication
 
 ---
 
@@ -96,8 +96,19 @@ style: |
 - Human-readable interface description language
 - Describes components' interfaces
 - Defines data types and functions
-- Enables language-agnostic communication
-- Powers the Component Model
+- imports and exports
+
+---
+
+# WIT types
+- Primitive types
+  - u8, u16, u32, u64, s8, s16, s32, s64, f32, f64
+  - bool, char, string
+- Compound types
+  - lists, options, results, tuples
+- User Defined Types
+  - records, variants, enums, flags, 
+- Resources
 
 ---
 
@@ -113,8 +124,40 @@ world example {
 
 ---
 
-# Hello components
+# Tools
+- bindings generators
+  - Language specific tool to generate stubs or bindings for your language
+- 
+---
 
+# Hello world component in Rust
+```rust
+#[allow(warnings)]
+mod bindings;
+
+use bindings::Guest;
+
+struct Component;
+
+impl Guest for Component {
+    /// Say hello!
+    fn greet(greetee: String) -> String {
+        format!("Hello from Rust, {}!", greetee)
+    }
+}
+
+bindings::export!(Component with_types_in bindings);
+```
+
+---
+
+# [Demo time!](./demo1.html)
+
+---
+# What about imports?
+```wit
+
+```
 ---
 
 # Component composition

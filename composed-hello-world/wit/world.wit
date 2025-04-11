@@ -1,0 +1,7 @@
+package component:composed-hello-world;
+
+/// An example world for the component to target.
+world example {
+  import additional-greeting: func() -> string;
+  export greet: func(greetee: string) -> string;
+}

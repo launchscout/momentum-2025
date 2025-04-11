@@ -1,0 +1,31 @@
+<head>
+  <title>Hello World</title>
+  <script async src="https://ga.jspm.io/npm:es-module-shims@2.0.10/dist/es-module-shims.js"
+    crossorigin="anonymous"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@bytecodealliance/preview2-shim/cli": "/node_modules/@bytecodealliance/preview2-shim/lib/browser/cli.js",
+      "@bytecodealliance/preview2-shim/clocks": "/node_modules/@bytecodealliance/preview2-shim/lib/browser/clocks.js",
+      "@bytecodealliance/preview2-shim/filesystem": "/node_modules/@bytecodealliance/preview2-shim/lib/browser/filesystem.js",
+      "@bytecodealliance/preview2-shim/io": "/node_modules/@bytecodealliance/preview2-shim/lib/browser/io.js",
+      "@bytecodealliance/preview2-shim/random": "/node_modules/@bytecodealliance/preview2-shim/lib/browser/random.js"
+    },
+    "scopes": {
+      "./": {
+        "fs/promises": "https://ga.jspm.io/npm:@jspm/core@2.1.0/nodelibs/browser/fs/promises.js"
+      }
+    }
+  }
+  </script>
+  <script type="module">
+    import { greet } from './composed-hello-world/composed-hello-world.js';
+
+    document.getElementById('greeting').innerHTML = greet("Peeps");
+
+  </script>
+</head>
+
+<body>
+  <h1 id="greeting"></h1>
+</body>
