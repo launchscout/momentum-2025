@@ -63,16 +63,10 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="agenda">Agenda</h1>
-<h2 id="webassembly-components">WebAssembly Components</h2>
-<ul>
-<li>Why we need them</li>
-<li>What are they</li>
-<li>How to build them</li>
-<li>How to run them</li>
-<li>Use cases</li>
-<li>Future</li>
-</ul>
+<h1 id="webassembly-beyond-the-browser-a-better-way-to-build-extensible-software">WebAssembly beyond the browser: a better way to build extensible software</h1>
+<h2 id="chris-nelson">Chris Nelson</h2>
+<h3 id="superchrislaunchscoutcom-bluesky">@superchris.launchscout.com (BlueSky)</h3>
+<h3 id="superchris-github">@superchris (github)</h3>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-style="
 section h1 {
@@ -129,13 +123,14 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="a-brief-history-of-webassembly">A brief history of WebAssembly</h1>
+<h1 id="agenda">Agenda</h1>
+<h2 id="webassembly-components">WebAssembly Components</h2>
 <ul>
-<li>2015: WebAssembly project announced</li>
-<li>2017: MVP released with support in all major browsers</li>
-<li>2019: W3C recommendation status achieved</li>
-<li>2019: WASI (WebAssembly System Interface) introduced</li>
-<li>2022: Component Model proposal</li>
+<li>Why we need them</li>
+<li>How to build them</li>
+<li>How to run them</li>
+<li>Use cases</li>
+<li>Future</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-style="
@@ -195,7 +190,6 @@ section #title-slide-logo {
 ;">
 <h1 id="webassembly-origins">WebAssembly Origins</h1>
 <ul>
-<li>Born from asm.js (Mozilla 2013)</li>
 <li>Designed to be a portable compilation target</li>
 <li>Created through collaboration between major browser vendors</li>
 <li>Goals: Speed, security, and platform independence</li>
@@ -256,13 +250,14 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="from-binary-to-ecosystem">From Binary to Ecosystem</h1>
+<h1 id="a-brief-history-of-webassembly">A brief history of WebAssembly</h1>
 <ul>
-<li>Started as a binary instruction format</li>
-<li>Evolved into a complete ecosystem</li>
-<li>Support expanded beyond browsers to server-side</li>
-<li>Growing language support: Rust, C/C++, AssemblyScript, and more</li>
-<li>Standardized text format (.wat) for human readability</li>
+<li>2013: asm.js (Mozilla)</li>
+<li>2015: WebAssembly project announced</li>
+<li>2017: MVP released with support in all major browsers</li>
+<li>2019: W3C recommendation status achieved</li>
+<li>2019: WASI (WebAssembly System Interface) introduced</li>
+<li>2022: Component Model proposal</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-style="
@@ -320,14 +315,15 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="limitations-of-core-webassembly">Limitations of Core WebAssembly</h1>
+<h1 id="webassembly-mvp">WebAssembly MVP</h1>
 <ul>
-<li>No direct language interoperability</li>
-<li>Limited data types (only numbers)</li>
-<li>Manual memory management needed</li>
-<li>Each module is isolated</li>
-<li>Complex host bindings</li>
-<li>Challenging to use across language boundaries</li>
+<li>Supports only numeric types</li>
+<li>Shared linear memory
+<ul>
+<li>Your job to manage</li>
+<li>Your job to figure out what to put there</li>
+</ul>
+</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-style="
@@ -385,7 +381,7 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="saying-hello-from-core-webassembly">Saying hello from Core WebAssembly</h1>
+<h1 id="saying-hello-from-webassembly">Saying hello from WebAssembly</h1>
 <ul>
 <li>Let's allocate some shared memory</li>
 <li>passing pointers and offsets and lengths, oh my!</li>
@@ -451,10 +447,13 @@ section #title-slide-logo {
 <h1 id="webassembly-components-1">WebAssembly Components</h1>
 <ul>
 <li>Higher-level abstraction on top of core WebAssembly</li>
-<li>Enables language-agnostic interfaces</li>
-<li>Standardized way to share complex data between modules</li>
-<li>Simplifies interoperability between programming languages</li>
-<li>Better ergonomics for developers</li>
+<li>Enables language-agnostic type system</li>
+<li>Establishes canonical ABI
+<ul>
+<li>how to map high level types to memory</li>
+</ul>
+</li>
+<li>Enables language-agnostic communication</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-style="
@@ -517,8 +516,7 @@ section #title-slide-logo {
 <li>Human-readable interface description language</li>
 <li>Describes components' interfaces</li>
 <li>Defines data types and functions</li>
-<li>Enables language-agnostic communication</li>
-<li>Powers the Component Model</li>
+<li>imports and exports</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-style="
@@ -576,14 +574,14 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="hello-wit">Hello WIT</h1>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-wit">package component:hello-world;
-
-/// An example world for the component to target.
-world example {
-    export greet: func(greetee: string) -&gt; string;
-}
-</code></pre>
+<h1 id="wit-structure">WIT structure</h1>
+<ul>
+<li>package - top level container of the form <code>namespace:name@version</code></li>
+<li>worlds - specifies the &quot;contract&quot; for a component and contains imports and exports</li>
+<li>interfaces - named group of types, imports and exports</li>
+<li>exports - functions provided by a component</li>
+<li>imports - functions a component needs provided to it</li>
+</ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-style="
 section h1 {
@@ -640,7 +638,26 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="hello-components">Hello components</h1>
+<h1 id="wit-types">WIT types</h1>
+<ul>
+<li>Primitive types
+<ul>
+<li>u8, u16, u32, u64, s8, s16, s32, s64, f32, f64</li>
+<li>bool, char, string</li>
+</ul>
+</li>
+<li>Compound types
+<ul>
+<li>lists, options, results, tuples</li>
+</ul>
+</li>
+<li>User Defined Types
+<ul>
+<li>records, variants, enums, flags,</li>
+</ul>
+</li>
+<li>Resources</li>
+</ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-style="
 section h1 {
@@ -697,7 +714,17 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="component-composition">Component composition</h1>
+<h1 id="language-support">Language support</h1>
+<ul>
+<li>Rust</li>
+<li>Javascript</li>
+<li>C/C++</li>
+<li>C# (.NET)</li>
+<li>Go</li>
+<li>Python</li>
+<li>Moonbit</li>
+<li>Elixir (host only)</li>
+</ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-style="
 section h1 {
@@ -754,7 +781,18 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="software-extensibility">Software extensibility</h1>
+<h1 id="definitions">Definitions</h1>
+<ul>
+<li><strong>bindings</strong> - language specific stubs generated from WIT</li>
+<li><strong>Hosts</strong> - Code which calls into webassembly components</li>
+<li><strong>Guests</strong> - Code which produces webassembly components to be called from Hosts</li>
+<li><strong>Runtimes</strong> - Provides all required services to access the outside world
+<ul>
+<li>browser (jco)</li>
+<li>server (wasmtime)</li>
+</ul>
+</li>
+</ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-style="
 section h1 {
@@ -811,7 +849,14 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="replacing-containers">Replacing containers</h1>
+<h1 id="hello-world-wit">Hello World WIT</h1>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-wit">package component:hello-world;
+
+/// An example world for the component to target.
+world example {
+    export greet: func(greetee: string) -&gt; string;
+}
+</code></pre>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-style="
 section h1 {
@@ -868,7 +913,23 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="spin-demo">Spin demo</h1>
+<h1 id="hello-world-component-in-rust">Hello world component in Rust</h1>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-rust"><span class="hljs-meta">#[allow(warnings)]</span>
+<span class="hljs-keyword">mod</span> bindings;
+
+<span class="hljs-keyword">use</span> bindings::Guest;
+
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">Component</span>;
+
+<span class="hljs-keyword">impl</span> <span class="hljs-title class_">Guest</span> <span class="hljs-keyword">for</span> <span class="hljs-title class_">Component</span> {
+    <span class="hljs-comment">/// Say hello!</span>
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">greet</span>(greetee: <span class="hljs-type">String</span>) <span class="hljs-punctuation">-&gt;</span> <span class="hljs-type">String</span> {
+        <span class="hljs-built_in">format!</span>(<span class="hljs-string">&quot;Hello from Rust, {}!&quot;</span>, greetee)
+    }
+}
+
+bindings::export!(Component with_types_in bindings);
+</code></pre>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-style="
 section h1 {
@@ -925,9 +986,908 @@ section #title-slide-logo {
   margin-left: -60px;
 }
 ;">
-<h1 id="universal-libraries">Universal libraries</h1>
+<h1 id="using-it-the-browser-with-jco">Using it the browser with jco</h1>
+<ul>
+<li>javascript toolchain for WebAssembly Component runtime</li>
+<li>handles both hosting and guesting</li>
+<li><code>jco componentize</code> creates guest components from javascript</li>
+<li><code>jco transpile</code> creates an ES module wrapper to host a component</li>
+</ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="demo-time"><a href="./demo1.html">Demo time!</a></h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="imports">Imports</h1>
+<ul>
+<li>Provided by host</li>
+<li>Provided by another component</li>
+<li><strong>Component composition</strong></li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="hello-with-imports">Hello, with imports</h1>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-wit">package component:composed-hello-world;
+
+/// An example world for the component to target.
+world example {
+  import additional-greeting: func() -&gt; string;
+  export greet: func(greetee: string) -&gt; string;
+}
+</code></pre>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="19" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="a-component-which-exports-additional-greeting">A component which exports <code>additional-greeting</code></h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="20" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="implementing-additional-greeting-in-go">Implementing <code>additional-greeting</code> in Go</h1>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-golang"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> (
+	<span class="hljs-string">&quot;additionalgreeting/internal/local/additional-greeting/additional-greeting&quot;</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">init</span><span class="hljs-params">()</span></span> {
+	additionalgreeting.Exports.AdditionalGreeting = <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> <span class="hljs-type">string</span> {
+		<span class="hljs-keyword">return</span> <span class="hljs-string">&quot;Hello from Go!&quot;</span>
+	}
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {}
+</code></pre>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="21" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="wac---a-tool-for-composing-webassembly-components">WAC - A tool for composing WebAssembly Components</h1>
+<ul>
+<li><strong>socket</strong> - A component with an (unsatisified import)</li>
+<li><strong>plug</strong> - A component with an export that matches the socket</li>
+<li><code>wac</code> composes plug components into socket components to produce a composed component</li>
+<li>simple scenarios &quot;just work&quot;</li>
+<li>a configuration language can handle more complex scenarios</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="composition-demo">Composition <a href="demo2.html">demo</a></h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="23" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="but-i-thought-you-said-beyond-the-browser">But I thought you said &quot;Beyond the Browser&quot;</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="24" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="wasi">WASI</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="25" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="hello-server">Hello server</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="26" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="whats-this-all-for">What's this all for?</h1>
+<ul>
+<li>A better serverless</li>
+<li>User extensible SAAS</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="27" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="software-extensibility">Software extensibility</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="28" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="replacing-containers">Replacing containers</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="29" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="spin-demo">Spin demo</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="30" data-style="
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+" lang="en-US" style="--style:
+section h1 {
+  color: #6042BC;
+}
+
+section code {
+  background-color: #e0e0ff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+}
+
+footer img {
+  position: absolute;
+  width: 120px;
+  right: 20px;
+  top: 0;
+
+}
+section #title-slide-logo {
+  margin-left: -60px;
+}
+;">
+<h1 id="universal-libraries">Universal libraries</h1>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="31" data-style="
 section h1 {
   color: #6042BC;
 }

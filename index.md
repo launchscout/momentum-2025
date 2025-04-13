@@ -29,10 +29,16 @@ style: |
     margin-left: -60px;
   }
 ---
+
+# WebAssembly beyond the browser: a better way to build extensible software
+## Chris Nelson
+### @superchris.launchscout.com (BlueSky)
+### @superchris (github)
+
+---
 # Agenda
 ## WebAssembly Components
 - Why we need them
-- What are they
 - How to build them
 - How to run them
 - Use cases
@@ -40,7 +46,16 @@ style: |
 
 ---
 
+# WebAssembly Origins
+
+- Designed to be a portable compilation target
+- Created through collaboration between major browser vendors
+- Goals: Speed, security, and platform independence
+
+---
+
 # A brief history of WebAssembly
+- 2013: asm.js (Mozilla)
 - 2015: WebAssembly project announced
 - 2017: MVP released with support in all major browsers
 - 2019: W3C recommendation status achieved
@@ -49,33 +64,15 @@ style: |
 
 ---
 
-# WebAssembly Origins
-- Born from asm.js (Mozilla 2013)
-- Designed to be a portable compilation target
-- Created through collaboration between major browser vendors
-- Goals: Speed, security, and platform independence
+# WebAssembly MVP
+- Supports only numeric types
+- Shared linear memory
+  - Your job to manage
+  - Your job to figure out what to put there
 
 ---
 
-# From Binary to Ecosystem
-- Started as a binary instruction format
-- Evolved into a complete ecosystem
-- Support expanded beyond browsers to server-side
-- Growing language support: Rust, C/C++, AssemblyScript, and more
-- Standardized text format (.wat) for human readability
-
----
-
-# Limitations of Core WebAssembly
-- No direct language interoperability
-- Limited data types (only numbers)
-- Manual memory management needed
-- Each module is isolated
-- Complex host bindings
-- Challenging to use across language boundaries
-
----
-# Saying hello from Core WebAssembly
+# Saying hello from WebAssembly
 - Let's allocate some shared memory
 - passing pointers and offsets and lengths, oh my!
 - oh yeah, we should figure out what encoding to use
@@ -100,6 +97,15 @@ style: |
 
 ---
 
+# WIT structure
+- package - top level container of the form `namespace:name@version` 
+- worlds - specifies the "contract" for a component and contains imports and exports
+- interfaces - named group of types, imports and exports
+- exports - functions provided by a component
+- imports - functions a component needs provided to it
+
+---
+
 # WIT types
 - Primitive types
   - u8, u16, u32, u64, s8, s16, s32, s64, f32, f64
@@ -112,7 +118,29 @@ style: |
 
 ---
 
-# Hello WIT
+# Language support
+- Rust
+- Javascript
+- C/C++
+- C# (.NET)
+- Go
+- Python
+- Moonbit
+- Elixir (host only)
+
+---
+
+# Definitions
+- **bindings** - language specific stubs generated from WIT
+- **Hosts** - Code which calls into webassembly components
+- **Guests** - Code which produces webassembly components to be called from Hosts
+- **Runtimes** - Provides all required services to access the outside world
+  - browser (jco)
+  - server (wasmtime)
+
+---
+
+# Hello World WIT
 ```wit
 package component:hello-world;
 
@@ -122,12 +150,6 @@ world example {
 }
 ```
 
----
-
-# Tools
-- bindings generators
-  - Language specific tool to generate stubs or bindings for your language
-- 
 ---
 
 # Hello world component in Rust
@@ -151,16 +173,88 @@ bindings::export!(Component with_types_in bindings);
 
 ---
 
+# Using it the browser with jco
+- javascript toolchain for WebAssembly Component runtime
+- handles both hosting and guesting
+- `jco componentize` creates guest components from javascript
+- `jco transpile` creates an ES module wrapper to host a component
+
+---
+
 # [Demo time!](./demo1.html)
 
 ---
-# What about imports?
-```wit
 
+# Imports
+- Provided by host
+- Provided by another component
+- **Component composition**
+
+---
+
+# Hello, with imports
+```wit
+package component:composed-hello-world;
+
+/// An example world for the component to target.
+world example {
+  import additional-greeting: func() -> string;
+  export greet: func(greetee: string) -> string;
+}
+```
+
+---
+
+# A component which exports `additional-greeting`
+
+---
+
+# Implementing `additional-greeting` in Go
+```golang
+package main
+
+import (
+	"additionalgreeting/internal/local/additional-greeting/additional-greeting"
+)
+
+func init() {
+	additionalgreeting.Exports.AdditionalGreeting = func() string {
+		return "Hello from Go!"
+	}
+}
+
+func main() {}
 ```
 ---
 
-# Component composition
+# WAC - A tool for composing WebAssembly Components
+- **socket** - A component with an (unsatisified import)
+- **plug** - A component with an export that matches the socket
+- `wac` composes plug components into socket components to produce a composed component
+- simple scenarios "just work"
+- a configuration language can handle more complex scenarios
+
+---
+
+# Composition [demo](demo2.html)
+
+---
+
+# But I thought you said "Beyond the Browser"
+
+---
+
+# WASI
+
+---
+
+# Hello server
+
+---
+
+# What's this all for?
+- A better serverless
+- User extensible SAAS
 
 ---
 
