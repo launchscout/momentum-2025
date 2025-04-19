@@ -132,6 +132,8 @@ style: |
 
 # Definitions
 - **bindings** - language specific stubs generated from WIT
+- **exports** - functions that a component provides
+- **imports** - functions that a component can call
 - **Hosts** - Code which calls into webassembly components
 - **Guests** - Code which produces webassembly components to be called from Hosts
 - **Runtimes** - Provides all required services to access the outside world
@@ -185,7 +187,8 @@ bindings::export!(Component with_types_in bindings);
 
 ---
 
-# Imports
+# Let's talk imports
+## Where do they come from?
 - Provided by host
 - Provided by another component
 - **Component composition**
@@ -205,8 +208,14 @@ world example {
 
 ---
 
-# A component which exports `additional-greeting`
+## A component which exports `additional-greeting`
+```wit
+package local:additional-greeting;
 
+world additional-greeting {
+  export additional-greeting: func() -> string;
+}
+```
 ---
 
 # Implementing `additional-greeting` in Go

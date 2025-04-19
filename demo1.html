@@ -18,23 +18,12 @@
   }
   </script>
   <script type="module">
-    import { greet } from './hello-world-go/hello-world-go.js';
-    import { greet as greetRust } from './hello-world/hello_world.js';
-    if (document.readyState === 'complete') {
-      document.getElementById('go-greeting').innerHTML = greet("Woorld");
-      document.getElementById('rust-greeting').innerHTML = greetRust("Werld");
-    } else {
-      window.addEventListener('load', () => {
-        document.getElementById('go-greeting').innerHTML = greet("Wurld");
-        document.getElementById('rust-greeting').innerHTML = greetRust("Wurld");
-      });
-    }
-
+    import { greet } from './hello-world/hello_world.js';
+    document.getElementById('greeting').innerHTML = greet("Werld");
   </script>
 </head>
 
 <body>
-  <h1 id="go-greeting"></h1>
-  <h1 id="rust-greeting"></h1>
+  <h1 id="greeting"></h1>
 </body>
 
