@@ -1,0 +1,6 @@
+package sunfishcode:hello-wasi-http;
+
+world target-world {
+  import greet: func(greetee: string) -> string;
+  include wasi:http/proxy@0.2.3;
+}

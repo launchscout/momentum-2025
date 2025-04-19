@@ -246,19 +246,74 @@ func main() {}
 
 # WASI
 
+- WebAssembly System Interface
+- Standardized API for WebAssembly to interact with the operating system
+- Enables WebAssembly modules to run outside browsers
+
+---
+
+# WASI Evolution
+
+- WASI Preview 1 (2019): First specification with basic system calls
+  - modeled after POSIX C api
+- WASI Preview 2: Components-based approach
+- More expressive interfaces through WIT
+- Multiple interface groups:
+  - wasi-cli: Command-line functionality
+  - wasi-http: HTTP client/server capabilities
+  - wasi-io: Input/output operations
+  - wasi-filesystem: File system access
+
+---
+
+# Why WASI Matters
+
+- Portable binary execution across platforms
+- Same security sandboxing as browser WebAssembly
+- Lower resource usage than containers
+- Language agnostic: write in any supported language
+- Enables WebAssembly to be a universal runtime for apps and services
+
+---
+
+# WASI Security Model
+
+- Capability-based security: explicit permissions
+  - no priviliges are the default
+- No ambient authority (no global system access)
+- Fine-grained control over resources
+- Pre-opened file descriptors
+- Directory-based sandboxing
+
 ---
 
 # Hello server
 
 ---
 
-# What's this all for?
-- A better serverless
-- User extensible SAAS
+# Software extensibility
+### How do we do it today?
+- Webhooks
+- API calls
 
 ---
 
-# Software extensibility
+# Problems
+- Latency
+- Complexity
+- Documentation
+- SDK development
+
+---
+
+## What if we could let our customers give us code to
+**safely** execute in the language of their choice
+
+---
+
+# Example: WasmCommerce
+- A 100% vibe coded ecommerce platform!
+- Now with customer provided shipping calculation!
 
 ---
 
