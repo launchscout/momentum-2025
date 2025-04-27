@@ -1,0 +1,14 @@
+spin_manifest_version = 2
+
+[application]
+name = "hello-spin"
+version = "0.1.0"
+authors = ["Chris Nelson <superchrisnelson@gmail.com>"]
+description = "A spin app for our existing component"
+
+[[trigger.http]]
+route = "/..."
+component = "hello-wasi-http"
+
+[component.hello-wasi-http]
+source = "../hello-wasi-http/hello_composed_http.wasm"

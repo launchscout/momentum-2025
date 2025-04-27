@@ -20,7 +20,7 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 
         let out = body.write().expect("outgoing stream");
-        out.blocking_write_and_flush(greet("Foo").as_bytes())
+        out.blocking_write_and_flush(greet("Friends").as_bytes())
             .expect("writing response");
 
         drop(out);

@@ -8680,7 +8680,7 @@ mod _rt {
 /// ```
 #[allow(unused_macros)]
 #[doc(hidden)]
-macro_rules! __export_target_world_impl {
+macro_rules! __export_hello_wasi_http_impl {
     ($ty:ident) => {
         self::export!($ty with_types_in self);
     };
@@ -8691,15 +8691,15 @@ macro_rules! __export_target_world_impl {
     };
 }
 #[doc(inline)]
-pub(crate) use __export_target_world_impl as export;
+pub(crate) use __export_hello_wasi_http_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[unsafe(
-    link_section = "component-type:wit-bindgen:0.41.0:sunfishcode:hello-wasi-http:target-world:encoded world"
+    link_section = "component-type:wit-bindgen:0.41.0:demo:hello-wasi-http:hello-wasi-http:encoded world"
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 7090] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xaf6\x01A\x02\x01A%\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 7089] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xab6\x01A\x02\x01A%\x01\
 @\x01\x07greetees\0s\x03\0\x05greet\x01\0\x01B\x0a\x04\0\x08pollable\x03\x01\x01\
 h\0\x01@\x01\x04self\x01\0\x7f\x04\0\x16[method]pollable.ready\x01\x02\x01@\x01\x04\
 self\x01\x01\0\x04\0\x16[method]pollable.block\x01\x03\x01p\x01\x01py\x01@\x01\x02\
@@ -8838,8 +8838,8 @@ handle\x01\x0d\x03\0\x20wasi:http/outgoing-handler@0.2.3\x05\x14\x02\x03\0\x09\x
 incoming-request\x02\x03\0\x09\x11response-outparam\x01B\x08\x02\x03\x02\x01\x15\
 \x04\0\x10incoming-request\x03\0\0\x02\x03\x02\x01\x16\x04\0\x11response-outpara\
 m\x03\0\x02\x01i\x01\x01i\x03\x01@\x02\x07request\x04\x0cresponse-out\x05\x01\0\x04\
-\0\x06handle\x01\x06\x04\0\x20wasi:http/incoming-handler@0.2.3\x05\x17\x04\0(sun\
-fishcode:hello-wasi-http/target-world\x04\0\x0b\x12\x01\0\x0ctarget-world\x03\0\0\
+\0\x06handle\x01\x06\x04\0\x20wasi:http/incoming-handler@0.2.3\x05\x17\x04\0$dem\
+o:hello-wasi-http/hello-wasi-http\x04\0\x0b\x15\x01\0\x0fhello-wasi-http\x03\0\0\
 \0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bind\
 gen-rust\x060.41.0";
 #[inline(never)]

@@ -28,7 +28,7 @@ pub trait Guest {
     fn greet(greetee: _rt::String) -> _rt::String;
 }
 #[doc(hidden)]
-macro_rules! __export_world_example_cabi {
+macro_rules! __export_world_hello_world_cabi {
     ($ty:ident with_types_in $($path_to_types:tt)*) => {
         const _ : () = { #[unsafe (export_name = "greet")] unsafe extern "C" fn
         export_greet(arg0 : * mut u8, arg1 : usize,) -> * mut u8 { unsafe {
@@ -39,7 +39,7 @@ macro_rules! __export_world_example_cabi {
     };
 }
 #[doc(hidden)]
-pub(crate) use __export_world_example_cabi;
+pub(crate) use __export_world_hello_world_cabi;
 #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
 #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
 struct _RetArea([::core::mem::MaybeUninit<u8>; 2 * ::core::mem::size_of::<*const u8>()]);
@@ -90,28 +90,28 @@ mod _rt {
 /// ```
 #[allow(unused_macros)]
 #[doc(hidden)]
-macro_rules! __export_example_impl {
+macro_rules! __export_hello_world_impl {
     ($ty:ident) => {
         self::export!($ty with_types_in self);
     };
     ($ty:ident with_types_in $($path_to_types_root:tt)*) => {
-        $($path_to_types_root)*:: __export_world_example_cabi!($ty with_types_in
+        $($path_to_types_root)*:: __export_world_hello_world_cabi!($ty with_types_in
         $($path_to_types_root)*);
     };
 }
 #[doc(inline)]
-pub(crate) use __export_example_impl as export;
+pub(crate) use __export_hello_world_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[unsafe(
-    link_section = "component-type:wit-bindgen:0.41.0:component:hello-world:example:encoded world"
+    link_section = "component-type:wit-bindgen:0.41.0:component:hello-world:hello-world:encoded world"
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 189] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07@\x01A\x02\x01A\x02\x01\
-@\x01\x07greetees\0s\x04\0\x05greet\x01\0\x04\0\x1dcomponent:hello-world/example\
-\x04\0\x0b\x0d\x01\0\x07example\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0d\
-wit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 197] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07D\x01A\x02\x01A\x02\x01\
+@\x01\x07greetees\0s\x04\0\x05greet\x01\0\x04\0!component:hello-world/hello-worl\
+d\x04\0\x0b\x11\x01\0\x0bhello-world\x03\0\0\0G\x09producers\x01\x0cprocessed-by\
+\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

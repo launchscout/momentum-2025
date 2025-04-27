@@ -1,4 +1,4 @@
-package local:additional-greeting;
+package local:additional-greeting@0.0.1;
 
 world additional-greeting {
   include wasi:cli/imports@0.2.0;

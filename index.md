@@ -38,19 +38,20 @@ style: |
 ---
 # Agenda
 ## WebAssembly Components
-- Why we need them
-- How to build them
-- How to run them
+- What and Why
+- Building and running
 - Use cases
 - Future
 
 ---
 
-# WebAssembly Origins
-
-- Designed to be a portable compilation target
-- Created through collaboration between major browser vendors
-- Goals: Speed, security, and platform independence
+# What is WebAssembly?
+- VM instruction format
+- Near-native execution speed
+- Memory-safe, sandboxed execution environment
+- Designed as a compilation target for languages like C, C++, Rust
+- Started in the browser, but growing usage on the server
+- Platform and language independent
 
 ---
 
@@ -64,9 +65,9 @@ style: |
 
 ---
 
-# WebAssembly MVP
+# WebAssembly Core (1.0)
 - Supports only numeric types
-- Shared linear memory
+- Linear memory
   - Your job to manage
   - Your job to figure out what to put there
 
@@ -90,19 +91,18 @@ style: |
 ---
 
 # WIT (WebAssembly Interface Types)
-- Human-readable interface description language
+- Interface Definition Language
 - Describes components' interfaces
 - Defines data types and functions
-- imports and exports
 
 ---
 
 # WIT structure
 - package - top level container of the form `namespace:name@version` 
-- worlds - specifies the "contract" for a component and contains imports and exports
-- interfaces - named group of types, imports and exports
-- exports - functions provided by a component
-- imports - functions a component needs provided to it
+- worlds - specifies the "contract" for a component and contains
+  - exports - functions (or interfaces) provided by a component
+  - imports - functions (or interfaces) provided by a component
+- interfaces - named group of types and functions
 
 ---
 
@@ -127,6 +127,7 @@ style: |
 - Python
 - Moonbit
 - Elixir (host only)
+- Ruby (host only)
 
 ---
 
@@ -146,15 +147,21 @@ style: |
 ```wit
 package component:hello-world;
 
-/// An example world for the component to target.
-world example {
+world hello-world {
     export greet: func(greetee: string) -> string;
 }
 ```
 
 ---
 
-# Hello world component in Rust
+# Implementing Hello world in Rust
+## Step 1: generate bindings
+```
+cargo component bindings
+```
+
+---
+# Implement the component
 ```rust
 #[allow(warnings)]
 mod bindings;
@@ -175,7 +182,19 @@ bindings::export!(Component with_types_in bindings);
 
 ---
 
-# Using it the browser with jco
+# Build
+```
+cargo component build
+```
+
+---
+
+# Now we need a runtime...
+## Guess what: we already have one!
+
+---
+
+# Webcomponents in the browser with jco
 - javascript toolchain for WebAssembly Component runtime
 - handles both hosting and guesting
 - `jco componentize` creates guest components from javascript
@@ -184,6 +203,10 @@ bindings::export!(Component with_types_in bindings);
 ---
 
 # [Demo time!](./demo1.html)
+- change some code
+- run our build
+- show the html
+- see it in the browser
 
 ---
 
@@ -199,8 +222,7 @@ bindings::export!(Component with_types_in bindings);
 ```wit
 package component:composed-hello-world;
 
-/// An example world for the component to target.
-world example {
+world composed-hello-world {
   import additional-greeting: func() -> string;
   export greet: func(greetee: string) -> string;
 }
@@ -219,6 +241,14 @@ world additional-greeting {
 ---
 
 # Implementing `additional-greeting` in Go
+### Generating bindings
+```sh
+wkg wit fetch
+wkg wit build
+go tool wit-bindgen-go generate --world additional-greeting --out internal ./local:additional-greeting@0.0.1.wasm
+```
+
+---
 ```golang
 package main
 
@@ -275,20 +305,11 @@ func main() {}
 
 ---
 
-# Why WASI Matters
-
-- Portable binary execution across platforms
-- Same security sandboxing as browser WebAssembly
-- Lower resource usage than containers
-- Language agnostic: write in any supported language
-- Enables WebAssembly to be a universal runtime for apps and services
-
----
-
 # WASI Security Model
 
 - Capability-based security: explicit permissions
   - no priviliges are the default
+  - requesting/granting is runtime specific
 - No ambient authority (no global system access)
 - Fine-grained control over resources
 - Pre-opened file descriptors
@@ -296,14 +317,71 @@ func main() {}
 
 ---
 
+# Let's serve our component!
+```wit
+package demo:hello-wasi-http;
+
+world hello-wasi-http {
+  import greet: func(greetee: string) -> string;
+  include wasi:http/proxy@0.2.3;
+}
+```
+
+---
+# A peek inside `wasi:http/proxy`
+### *greatly* simplified
+```
+interface incoming-handler {
+  use types.{incoming-request, response-outparam};
+  handle: func(request: incoming-request, response-out: response-outparam);
+}
+
+world proxy {
+  import outgoing-handler;
+
+  export incoming-handler;
+}
+```
+
+---
+# Implementing in Rust
+```rust
+use bindings::greet;
+
+impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
+    fn handle(_request: IncomingRequest, outparam: ResponseOutparam) {
+        let hdrs = Fields::new();
+        let resp = OutgoingResponse::new(hdrs);
+        let body = resp.body().expect("outgoing response");
+
+        ResponseOutparam::set(outparam, Ok(resp));
+
+
+        let out = body.write().expect("outgoing stream");
+        out.blocking_write_and_flush(greet("Friends").as_bytes())
+            .expect("writing response");
+
+        drop(out);
+        OutgoingBody::finish(body, None).unwrap();
+    }
+}
+```
+---
+
 # Hello server
+- show wit
+- show source
+- show wac command
+- run it
 
 ---
 
-# Software extensibility
+# Use case #1: SAAS plugins
 ### How do we do it today?
 - Webhooks
 - API calls
+- SDKs or bespoke languages
+  - Lua, javascript, etc
 
 ---
 
@@ -311,7 +389,7 @@ func main() {}
 - Latency
 - Complexity
 - Documentation
-- SDK development
+- Language choice
 
 ---
 
@@ -321,12 +399,62 @@ func main() {}
 ---
 
 # Example: WasmCommerce
-- A 100% vibe coded ecommerce platform!
-- Now with customer provided shipping calculation!
+### A 100% vibe coded ecommerce platform (Elixir)
 
 ---
 
-# Replacing containers
+# Let's add custom shipping calculation
+- We want to see the result immediately on the order screen
+- Latency is a problem
+- webhooks/API calls are not ideal
+
+---
+
+# A shipping calculator WebAssembly component
+- create our contract
+- implement our component
+- call it from our SAAS
+  - requires a runtime (wasmex)
+
+---
+
+# Demo!
+
+---
+
+# But wait, there's more
+- What if we want a sunny day discount?
+
+---
+
+# Use case #2: Replacing containers
+- Containers are portable, which is great
+- They bundle an OS, which is not great
+- And also makes em slow to start
+
+---
+
+# Before
+![Cloud hosting](cloud_hosting.webp)
+
+---
+# After
+![Wasm hosting](wasm_hosting.webp)
+
+---
+
+# Hosting for WASM components
+- Fermyon Spin
+- WasmCloud
+- NGINX Unit
+- MS Hyperlight
+
+---
+
+# Edge stuff
+- Edgee
+- Ferymon/Akamai
+- WasmCloud/Akamai
 
 ---
 
@@ -334,6 +462,15 @@ func main() {}
 
 ---
 
-# Universal libraries
+# Usage in the wild
+
+---
+
+# WASI P3
+- Async!
+- currently we have poll
+  - only 1 component can poll at a time
+  - everybody is blocke
+- future, stream
 
 ---

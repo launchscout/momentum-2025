@@ -6,7 +6,7 @@ import (
 
 func init() {
 	additionalgreeting.Exports.AdditionalGreeting = func() string {
-		return "Hello from Go!"
+		return "Hello from Go"
 	}
 }
 
