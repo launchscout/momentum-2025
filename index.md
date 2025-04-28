@@ -276,7 +276,10 @@ func main() {}
 ---
 
 # Composition [demo](demo2.html)
-
+- change some go
+- build
+- change some rust
+- build
 ---
 
 # But I thought you said "Beyond the Browser"
@@ -308,12 +311,8 @@ func main() {}
 # WASI Security Model
 
 - Capability-based security: explicit permissions
-  - no priviliges are the default
-  - requesting/granting is runtime specific
-- No ambient authority (no global system access)
-- Fine-grained control over resources
-- Pre-opened file descriptors
-- Directory-based sandboxing
+- no priviliges are the default
+- granting permissions is runtime specific
 
 ---
 
@@ -329,7 +328,7 @@ world hello-wasi-http {
 
 ---
 # A peek inside `wasi:http/proxy`
-### *greatly* simplified
+### *very greatly* simplified
 ```
 interface incoming-handler {
   use types.{incoming-request, response-outparam};
@@ -337,8 +336,6 @@ interface incoming-handler {
 }
 
 world proxy {
-  import outgoing-handler;
-
   export incoming-handler;
 }
 ```
@@ -349,29 +346,24 @@ world proxy {
 use bindings::greet;
 
 impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
-    fn handle(_request: IncomingRequest, outparam: ResponseOutparam) {
-        let hdrs = Fields::new();
-        let resp = OutgoingResponse::new(hdrs);
-        let body = resp.body().expect("outgoing response");
-
-        ResponseOutparam::set(outparam, Ok(resp));
-
-
-        let out = body.write().expect("outgoing stream");
-        out.blocking_write_and_flush(greet("Friends").as_bytes())
-            .expect("writing response");
-
-        drop(out);
-        OutgoingBody::finish(body, None).unwrap();
+    fn handle(_request: IncomingRequest, response_out: ResponseOutparam) {
+      let response = OutgoingResponse::new(Fields::new());
+      response.set_status_code(200).unwrap();
+      let response_body = response.body().unwrap();
+      response_body
+          .write()
+          .unwrap()
+          .blocking_write_and_flush(greet("Friends").as_bytes())
+          .unwrap();
+      OutgoingBody::finish(response_body, None).expect("failed to finish response body");
+      ResponseOutparam::set(response_out, Ok(response));
     }
 }
 ```
 ---
 
 # Hello server
-- show wit
-- show source
-- show wac command
+- change some code
 - run it
 
 ---
@@ -393,12 +385,11 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
-## What if we could let our customers give us code to
-**safely** execute in the language of their choice
+# What if we could let our customers give us code to **safely** execute in the language of their choice?
 
 ---
 
-# Example: WasmCommerce
+# Example: [WasmCommerce](http://localhost:4000)
 ### A 100% vibe coded ecommerce platform (Elixir)
 
 ---
@@ -411,7 +402,7 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 ---
 
 # A shipping calculator WebAssembly component
-- create our contract
+- create our WIT
 - implement our component
 - call it from our SAAS
   - requires a runtime (wasmex)
@@ -422,8 +413,10 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
-# But wait, there's more
-- What if we want a sunny day discount?
+# Exercises left for the reader
+- Customers providing the component
+  - upload or CLI tool
+- Fethcing and loading component instances per customer
 
 ---
 
@@ -438,6 +431,7 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 ![Cloud hosting](cloud_hosting.webp)
 
 ---
+
 # After
 ![Wasm hosting](wasm_hosting.webp)
 
@@ -447,14 +441,15 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 - Fermyon Spin
 - WasmCloud
 - NGINX Unit
-- MS Hyperlight
+- MS Hyperlight WASM
 
 ---
 
-# Edge stuff
-- Edgee
+# Components on the Edge
+- Fastly
 - Ferymon/Akamai
 - WasmCloud/Akamai
+- Edgee
 
 ---
 
@@ -462,15 +457,15 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
-# Usage in the wild
-
----
-
 # WASI P3
 - Async!
 - currently we have poll
   - only 1 component can poll at a time
-  - everybody is blocke
+  - everybody is blocked
 - future, stream
+
+---
+
+# Questions
 
 ---
