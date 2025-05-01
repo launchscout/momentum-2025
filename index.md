@@ -32,10 +32,12 @@ style: |
 
 # WebAssembly beyond the browser: a better way to build extensible software
 ## Chris Nelson
-### @superchris.launchscout.com (BlueSky)
-### @superchris (github)
+@superchris.launchscout.com (BlueSky)
+github.com/superchris
+![h:200](/images/full-color.png#title-slide-logo)
 
 ---
+
 # Agenda
 ## WebAssembly Components
 - What and Why
@@ -52,16 +54,6 @@ style: |
 - Designed as a compilation target for languages like C, C++, Rust
 - Started in the browser, but growing usage on the server
 - Platform and language independent
-
----
-
-# A brief history of WebAssembly
-- 2013: asm.js (Mozilla)
-- 2015: WebAssembly project announced
-- 2017: MVP released with support in all major browsers
-- 2019: W3C recommendation status achieved
-- 2019: WASI (WebAssembly System Interface) introduced
-- 2022: Component Model proposal
 
 ---
 
@@ -103,6 +95,7 @@ style: |
   - exports - functions (or interfaces) provided by a component
   - imports - functions (or interfaces) provided by a component
 - interfaces - named group of types and functions
+- types
 
 ---
 
@@ -115,6 +108,7 @@ style: |
 - User Defined Types
   - records, variants, enums, flags, 
 - Resources
+  - references to things that live outside the component
 
 ---
 
@@ -362,6 +356,13 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 ```
 ---
 
+# wasmtime
+- runtime which supports the component model
+- run - invokes a component
+- serve - serves a component over http
+
+---
+
 # Hello server
 - change some code
 - run it
@@ -372,8 +373,9 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 ### How do we do it today?
 - Webhooks
 - API calls
-- SDKs or bespoke languages
+- Customer provided code
   - Lua, javascript, etc
+  - DSL or custom language
 
 ---
 
@@ -385,7 +387,10 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
-# What if we could let our customers give us code to **safely** execute in the language of their choice?
+# Solution: WebAssembly Components
+- customer provided code
+- language agnostic
+- securely sandboxed runtime
 
 ---
 
@@ -409,14 +414,14 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
-# Demo!
+# Let's see!
 
 ---
 
 # Exercises left for the reader
 - Customers providing the component
   - upload or CLI tool
-- Fethcing and loading component instances per customer
+- Fetching and loading component instances per customer
 
 ---
 
@@ -454,6 +459,9 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 ---
 
 # Spin demo
+- show toml
+- try a demo
+- requires tether so we'll see :)
 
 ---
 

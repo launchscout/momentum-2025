@@ -16,7 +16,7 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
       response_body
           .write()
           .unwrap()
-          .blocking_write_and_flush(greet("Fiends").as_bytes())
+          .blocking_write_and_flush(greet("Friend").as_bytes())
           .unwrap();
       OutgoingBody::finish(response_body, None).expect("failed to finish response body");
       ResponseOutparam::set(response_out, Ok(response));

@@ -8,7 +8,7 @@ struct Component;
 impl Guest for Component {
     /// Say hello!
     fn greet(greetee: String) -> String {
-        format!("Hello from Rust at Stir Trek 2025!, {}!", greetee)
+        format!("Hello from Rust, {}!", greetee)
     }
 }
 
