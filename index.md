@@ -476,4 +476,5 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 # Questions
 
+![h:500](/images/qrcode.png)
 ---
