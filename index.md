@@ -404,6 +404,10 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
+# Let's get practical!
+
+---
+
 # Use case #1: SAAS plugins
 ### How do we do it today?
 - Webhooks
@@ -511,16 +515,23 @@ world shipping-calculator-component {
 ---
 
 # Let's teach Claude to generate a QR code!
+## First we'll need a QR code genearator...
+```wit
+package component:qr-code;
+
+world qr-code {
+    /// Generate a QR code SVG from the given text or URL
+    export generate-qr: func(input: string) -> result<string, string>;
+    
+    /// Generate a QR code with custom settings
+    export generate-qr-custom: func(input: string, size: u32) -> result<string, string>;
+    
+}
+```
 
 ---
 
-# Before
-![Cloud hosting](cloud_hosting.webp)
-
----
-
-# After
-![Wasm hosting](wasm_hosting.webp)
+# Let's add a QR Code
 
 ---
 
@@ -540,18 +551,15 @@ world shipping-calculator-component {
 
 ---
 
-# Spin demo
-- show toml
-- try a demo
-- requires tether so we'll see :)
-
----
-
 # WASI P3
 - Async!
 - currently we have poll
   - only 1 component can poll at a time
   - everybody is blocked
 - future, stream
+
+---
+
+# Questions?
 
 ---

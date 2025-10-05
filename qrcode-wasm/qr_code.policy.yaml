@@ -5,9 +5,11 @@ permissions:
   # File system access for saving generated QR codes
   storage:
     allow:
+      - uri: "fs:///Users/superchris/dev/stirtrek-2025/images"
+        access: ["read", "write"]
       # Default output directory - user's Downloads folder
       # NOTE: Update 'brian' to your username or use /tmp/qr-output instead
-      - uri: "fs:///home/brian/Downloads"
+      - uri: "fs:///home/superchris/Downloads"
         access: ["read", "write"]
       # Alternative output location (recommended for portability)
       - uri: "fs:///tmp/qr-output"
