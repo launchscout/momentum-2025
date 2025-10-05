@@ -1,12 +1,16 @@
-import { WasiCliEnvironment } from './interfaces/wasi-cli-environment.js';
-import { WasiCliExit } from './interfaces/wasi-cli-exit.js';
-import { WasiCliStderr } from './interfaces/wasi-cli-stderr.js';
-import { WasiCliStdin } from './interfaces/wasi-cli-stdin.js';
-import { WasiCliStdout } from './interfaces/wasi-cli-stdout.js';
-declare const WasiClocksWallClock: {};
-import { WasiFilesystemPreopens } from './interfaces/wasi-filesystem-preopens.js';
-import { WasiFilesystemTypes } from './interfaces/wasi-filesystem-types.js';
-import { WasiIoError } from './interfaces/wasi-io-error.js';
-import { WasiIoStreams } from './interfaces/wasi-io-streams.js';
-import { WasiRandomRandom } from './interfaces/wasi-random-random.js';
+// world root:component/root
+export type * as WasiCliEnvironment023 from './interfaces/wasi-cli-environment.js'; // import wasi:cli/environment@0.2.3
+export type * as WasiCliExit023 from './interfaces/wasi-cli-exit.js'; // import wasi:cli/exit@0.2.3
+export type * as WasiCliStderr023 from './interfaces/wasi-cli-stderr.js'; // import wasi:cli/stderr@0.2.3
+export type * as WasiCliStdin023 from './interfaces/wasi-cli-stdin.js'; // import wasi:cli/stdin@0.2.3
+export type * as WasiCliStdout020 from './interfaces/wasi-cli-stdout.js'; // import wasi:cli/stdout@0.2.0
+export type * as WasiCliStdout023 from './interfaces/wasi-cli-stdout.js'; // import wasi:cli/stdout@0.2.3
+export type * as WasiClocksWallClock023 from './interfaces/wasi-clocks-wall-clock.js'; // import wasi:clocks/wall-clock@0.2.3
+export type * as WasiFilesystemPreopens023 from './interfaces/wasi-filesystem-preopens.js'; // import wasi:filesystem/preopens@0.2.3
+export type * as WasiFilesystemTypes023 from './interfaces/wasi-filesystem-types.js'; // import wasi:filesystem/types@0.2.3
+export type * as WasiIoError020 from './interfaces/wasi-io-error.js'; // import wasi:io/error@0.2.0
+export type * as WasiIoError023 from './interfaces/wasi-io-error.js'; // import wasi:io/error@0.2.3
+export type * as WasiIoStreams020 from './interfaces/wasi-io-streams.js'; // import wasi:io/streams@0.2.0
+export type * as WasiIoStreams023 from './interfaces/wasi-io-streams.js'; // import wasi:io/streams@0.2.3
+export type * as WasiRandomRandom020 from './interfaces/wasi-random-random.js'; // import wasi:random/random@0.2.0
 export function greet(greetee: string): string;

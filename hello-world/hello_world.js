@@ -13,34 +13,31 @@ const { Error: Error$1 } = error;
 const { InputStream,
   OutputStream } = streams;
 
-const base64Compile = str => WebAssembly.compile(typeof Buffer !== 'undefined' ? Buffer.from(str, 'base64') : Uint8Array.from(atob(str), b => b.charCodeAt(0)));
-
-let curResourceBorrows = [];
-
 let dv = new DataView(new ArrayBuffer());
 const dataView = mem => dv.buffer === mem.buffer ? dv : dv = new DataView(mem.buffer);
 
-const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
-let _fs;
-async function fetchCompile (url) {
-  if (isNode) {
-    _fs = _fs || await import('fs/promises');
-    return WebAssembly.compile(await _fs.readFile(url));
+const toUint64 = val => BigInt.asUintN(64, BigInt(val));
+
+function toUint32(val) {
+  return val >>> 0;
+}
+
+const utf8Decoder = new TextDecoder();
+
+const utf8Encoder = new TextEncoder();
+let utf8EncodedLen = 0;
+function utf8Encode(s, realloc, memory) {
+  if (typeof s !== 'string') throw new TypeError('expected a string');
+  if (s.length === 0) {
+    utf8EncodedLen = 0;
+    return 1;
   }
-  return fetch(url).then(WebAssembly.compileStreaming);
+  let buf = utf8Encoder.encode(s);
+  let ptr = realloc(0, 0, 1, buf.length);
+  new Uint8Array(memory.buffer).set(buf, ptr);
+  utf8EncodedLen = buf.length;
+  return ptr;
 }
-
-function getErrorPayload(e) {
-  if (e && hasOwnProperty.call(e, 'payload')) return e.payload;
-  if (e instanceof Error) throw e;
-  return e;
-}
-
-const handleTables = [];
-
-const hasOwnProperty = Object.prototype.hasOwnProperty;
-
-const instantiateCore = WebAssembly.instantiate;
 
 const T_FLAG = 1 << 30;
 
@@ -68,6 +65,593 @@ function rscTableRemove (table, handle) {
   return { rep, scope, own };
 }
 
+let curResourceBorrows = [];
+
+let NEXT_TASK_ID = 0n;
+function startCurrentTask(componentIdx, isAsync, entryFnName) {
+  _debugLog('[startCurrentTask()] args', { componentIdx, isAsync });
+  if (componentIdx === undefined || componentIdx === null) {
+    throw new Error('missing/invalid component instance index while starting task');
+  }
+  const tasks = ASYNC_TASKS_BY_COMPONENT_IDX.get(componentIdx);
+  
+  const nextId = ++NEXT_TASK_ID;
+  const newTask = new AsyncTask({ id: nextId, componentIdx, isAsync, entryFnName });
+  const newTaskMeta = { id: nextId, componentIdx, task: newTask };
+  
+  ASYNC_CURRENT_TASK_IDS.push(nextId);
+  ASYNC_CURRENT_COMPONENT_IDXS.push(componentIdx);
+  
+  if (!tasks) {
+    ASYNC_TASKS_BY_COMPONENT_IDX.set(componentIdx, [newTaskMeta]);
+    return nextId;
+  } else {
+    tasks.push(newTaskMeta);
+  }
+  
+  return nextId;
+}
+
+function endCurrentTask(componentIdx, taskId) {
+  _debugLog('[endCurrentTask()] args', { componentIdx });
+  componentIdx ??= ASYNC_CURRENT_COMPONENT_IDXS.at(-1);
+  taskId ??= ASYNC_CURRENT_TASK_IDS.at(-1);
+  if (componentIdx === undefined || componentIdx === null) {
+    throw new Error('missing/invalid component instance index while ending current task');
+  }
+  const tasks = ASYNC_TASKS_BY_COMPONENT_IDX.get(componentIdx);
+  if (!tasks || !Array.isArray(tasks)) {
+    throw new Error('missing/invalid tasks for component instance while ending task');
+  }
+  if (tasks.length == 0) {
+    throw new Error('no current task(s) for component instance while ending task');
+  }
+  
+  if (taskId) {
+    const last = tasks[tasks.length - 1];
+    if (last.id !== taskId) {
+      throw new Error('current task does not match expected task ID');
+    }
+  }
+  
+  ASYNC_CURRENT_TASK_IDS.pop();
+  ASYNC_CURRENT_COMPONENT_IDXS.pop();
+  
+  return tasks.pop();
+}
+const ASYNC_TASKS_BY_COMPONENT_IDX = new Map();
+const ASYNC_CURRENT_TASK_IDS = [];
+const ASYNC_CURRENT_COMPONENT_IDXS = [];
+
+class AsyncTask {
+  static State = {
+    INITIAL: 'initial',
+    CANCELLED: 'cancelled',
+    CANCEL_PENDING: 'cancel-pending',
+    CANCEL_DELIVERED: 'cancel-delivered',
+    RESOLVED: 'resolved',
+  }
+  
+  static BlockResult = {
+    CANCELLED: 'block.cancelled',
+    NOT_CANCELLED: 'block.not-cancelled',
+  }
+  
+  #id;
+  #componentIdx;
+  #state;
+  #isAsync;
+  #onResolve = null;
+  #returnedResults = null;
+  #entryFnName = null;
+  
+  cancelled = false;
+  requested = false;
+  alwaysTaskReturn = false;
+  
+  returnCalls =  0;
+  storage = [0, 0];
+  borrowedHandles = {};
+  
+  awaitableResume = null;
+  awaitableCancel = null;
+  
+  constructor(opts) {
+    if (opts?.id === undefined) { throw new TypeError('missing task ID during task creation'); }
+    this.#id = opts.id;
+    if (opts?.componentIdx === undefined) {
+      throw new TypeError('missing component id during task creation');
+    }
+    this.#componentIdx = opts.componentIdx;
+    this.#state = AsyncTask.State.INITIAL;
+    this.#isAsync = opts?.isAsync ?? false;
+    this.#entryFnName = opts.entryFnName;
+    
+    this.#onResolve = (results) => {
+      this.#returnedResults = results;
+    }
+  }
+  
+  taskState() { return this.#state.slice(); }
+  id() { return this.#id; }
+  componentIdx() { return this.#componentIdx; }
+  isAsync() { return this.#isAsync; }
+  getEntryFnName() { return this.#entryFnName; }
+  
+  takeResults() {
+    const results = this.#returnedResults;
+    this.#returnedResults = null;
+    return results;
+  }
+  
+  mayEnter(task) {
+    const cstate = getOrCreateAsyncState(this.#componentIdx);
+    if (!cstate.backpressure) {
+      _debugLog('[AsyncTask#mayEnter()] disallowed due to backpressure', { taskID: this.#id });
+      return false;
+    }
+    if (!cstate.callingSyncImport()) {
+      _debugLog('[AsyncTask#mayEnter()] disallowed due to sync import call', { taskID: this.#id });
+      return false;
+    }
+    const callingSyncExportWithSyncPending = cstate.callingSyncExport && !task.isAsync;
+    if (!callingSyncExportWithSyncPending) {
+      _debugLog('[AsyncTask#mayEnter()] disallowed due to sync export w/ sync pending', { taskID: this.#id });
+      return false;
+    }
+    return true;
+  }
+  
+  async enter() {
+    _debugLog('[AsyncTask#enter()] args', { taskID: this.#id });
+    
+    // TODO: assert scheduler locked
+    // TODO: trap if on the stack
+    
+    const cstate = getOrCreateAsyncState(this.#componentIdx);
+    
+    let mayNotEnter = !this.mayEnter(this);
+    const componentHasPendingTasks = cstate.pendingTasks > 0;
+    if (mayNotEnter || componentHasPendingTasks) {
+      
+      throw new Error('in enter()'); // TODO: remove
+      cstate.pendingTasks.set(this.#id, new Awaitable(new Promise()));
+      
+      const blockResult = await this.onBlock(awaitable);
+      if (blockResult) {
+        // TODO: find this pending task in the component
+        const pendingTask = cstate.pendingTasks.get(this.#id);
+        if (!pendingTask) {
+          throw new Error('pending task [' + this.#id + '] not found for component instance');
+        }
+        cstate.pendingTasks.remove(this.#id);
+        this.#onResolve([]);
+        return false;
+      }
+      
+      mayNotEnter = !this.mayEnter(this);
+      if (!mayNotEnter || !cstate.startPendingTask) {
+        throw new Error('invalid component entrance/pending task resolution');
+      }
+      cstate.startPendingTask = false;
+    }
+    
+    if (!this.isAsync) { cstate.callingSyncExport = true; }
+    
+    return true;
+  }
+  
+  async waitForEvent(opts) {
+    const { waitableSetRep, isAsync } = opts;
+    _debugLog('[AsyncTask#waitForEvent()] args', { taskID: this.#id, waitableSetRep, isAsync });
+    
+    if (this.#isAsync !== isAsync) {
+      throw new Error('async waitForEvent called on non-async task');
+    }
+    
+    if (this.status === AsyncTask.State.CANCEL_PENDING) {
+      this.#state = AsyncTask.State.CANCEL_DELIVERED;
+      return {
+        code: ASYNC_EVENT_CODE.TASK_CANCELLED,
+      };
+    }
+    
+    const state = getOrCreateAsyncState(this.#componentIdx);
+    const waitableSet = state.waitableSets.get(waitableSetRep);
+    if (!waitableSet) { throw new Error('missing/invalid waitable set'); }
+    
+    waitableSet.numWaiting += 1;
+    let event = null;
+    
+    while (event == null) {
+      const awaitable = new Awaitable(waitableSet.getPendingEvent());
+      const waited = await this.blockOn({ awaitable, isAsync, isCancellable: true });
+      if (waited) {
+        if (this.#state !== AsyncTask.State.INITIAL) {
+          throw new Error('task should be in initial state found [' + this.#state + ']');
+        }
+        this.#state = AsyncTask.State.CANCELLED;
+        return {
+          code: ASYNC_EVENT_CODE.TASK_CANCELLED,
+        };
+      }
+      
+      event = waitableSet.poll();
+    }
+    
+    waitableSet.numWaiting -= 1;
+    return event;
+  }
+  
+  waitForEventSync(opts) {
+    throw new Error('AsyncTask#yieldSync() not implemented')
+  }
+  
+  async pollForEvent(opts) {
+    const { waitableSetRep, isAsync } = opts;
+    _debugLog('[AsyncTask#pollForEvent()] args', { taskID: this.#id, waitableSetRep, isAsync });
+    
+    if (this.#isAsync !== isAsync) {
+      throw new Error('async pollForEvent called on non-async task');
+    }
+    
+    throw new Error('AsyncTask#pollForEvent() not implemented');
+  }
+  
+  pollForEventSync(opts) {
+    throw new Error('AsyncTask#yieldSync() not implemented')
+  }
+  
+  async blockOn(opts) {
+    const { awaitable, isCancellable, forCallback } = opts;
+    _debugLog('[AsyncTask#blockOn()] args', { taskID: this.#id, awaitable, isCancellable, forCallback });
+    
+    if (awaitable.resolved() && !ASYNC_DETERMINISM && _coinFlip()) {
+      return AsyncTask.BlockResult.NOT_CANCELLED;
+    }
+    
+    const cstate = getOrCreateAsyncState(this.#componentIdx);
+    if (forCallback) { cstate.exclusiveRelease(); }
+    
+    let cancelled = await this.onBlock(awaitable);
+    if (cancelled === AsyncTask.BlockResult.CANCELLED && !isCancellable) {
+      const secondCancel = await this.onBlock(awaitable);
+      if (secondCancel !== AsyncTask.BlockResult.NOT_CANCELLED) {
+        throw new Error('uncancellable task was canceled despite second onBlock()');
+      }
+    }
+    
+    if (forCallback) {
+      const acquired = new Awaitable(cstate.exclusiveLock());
+      cancelled = await this.onBlock(acquired);
+      if (cancelled === AsyncTask.BlockResult.CANCELLED) {
+        const secondCancel = await this.onBlock(acquired);
+        if (secondCancel !== AsyncTask.BlockResult.NOT_CANCELLED) {
+          throw new Error('uncancellable callback task was canceled despite second onBlock()');
+        }
+      }
+    }
+    
+    if (cancelled === AsyncTask.BlockResult.CANCELLED) {
+      if (this.#state !== AsyncTask.State.INITIAL) {
+        throw new Error('cancelled task is not at initial state');
+      }
+      if (isCancellable) {
+        this.#state = AsyncTask.State.CANCELLED;
+        return AsyncTask.BlockResult.CANCELLED;
+      } else {
+        this.#state = AsyncTask.State.CANCEL_PENDING;
+        return AsyncTask.BlockResult.NOT_CANCELLED;
+      }
+    }
+    
+    return AsyncTask.BlockResult.NOT_CANCELLED;
+  }
+  
+  async onBlock(awaitable) {
+    _debugLog('[AsyncTask#onBlock()] args', { taskID: this.#id, awaitable });
+    if (!(awaitable instanceof Awaitable)) {
+      throw new Error('invalid awaitable during onBlock');
+    }
+    
+    // Build a promise that this task can await on which resolves when it is awoken
+    const { promise, resolve, reject } = Promise.withResolvers();
+    this.awaitableResume = () => {
+      _debugLog('[AsyncTask] resuming after onBlock', { taskID: this.#id });
+      resolve();
+    };
+    this.awaitableCancel = (err) => {
+      _debugLog('[AsyncTask] rejecting after onBlock', { taskID: this.#id, err });
+      reject(err);
+    };
+    
+    // Park this task/execution to be handled later
+    const state = getOrCreateAsyncState(this.#componentIdx);
+    state.parkTaskOnAwaitable({ awaitable, task: this });
+    
+    try {
+      await promise;
+      return AsyncTask.BlockResult.NOT_CANCELLED;
+    } catch (err) {
+      // rejection means task cancellation
+      return AsyncTask.BlockResult.CANCELLED;
+    }
+  }
+  
+  // NOTE: this should likely be moved to a SubTask class
+  async asyncOnBlock(awaitable) {
+    _debugLog('[AsyncTask#asyncOnBlock()] args', { taskID: this.#id, awaitable });
+    if (!(awaitable instanceof Awaitable)) {
+      throw new Error('invalid awaitable during onBlock');
+    }
+    // TODO: watch for waitable AND cancellation
+    // TODO: if it WAS cancelled:
+    // - return true
+    // - only once per subtask
+    // - do not wait on the scheduler
+    // - control flow should go to the subtask (only once)
+    // - Once subtask blocks/resolves, reqlinquishControl() will tehn resolve request_cancel_end (without scheduler lock release)
+    // - control flow goes back to request_cancel
+    //
+    // Subtask cancellation should work similarly to an async import call -- runs sync up until
+    // the subtask blocks or resolves
+    //
+    throw new Error('AsyncTask#asyncOnBlock() not yet implemented');
+  }
+  
+  async yield(opts) {
+    const { isCancellable, forCallback } = opts;
+    _debugLog('[AsyncTask#yield()] args', { taskID: this.#id, isCancellable, forCallback });
+    
+    if (isCancellable && this.status === AsyncTask.State.CANCEL_PENDING) {
+      this.#state = AsyncTask.State.CANCELLED;
+      return {
+        code: ASYNC_EVENT_CODE.TASK_CANCELLED,
+        payload: [0, 0],
+      };
+    }
+    
+    // TODO: Awaitables need to *always* trigger the parking mechanism when they're done...?
+    // TODO: Component async state should remember which awaitables are done and work to clear tasks waiting
+    
+    const blockResult = await this.blockOn({
+      awaitable: new Awaitable(new Promise(resolve => setTimeout(resolve, 0))),
+      isCancellable,
+      forCallback,
+    });
+    
+    if (blockResult === AsyncTask.BlockResult.CANCELLED) {
+      if (this.#state !== AsyncTask.State.INITIAL) {
+        throw new Error('task should be in initial state found [' + this.#state + ']');
+      }
+      this.#state = AsyncTask.State.CANCELLED;
+      return {
+        code: ASYNC_EVENT_CODE.TASK_CANCELLED,
+        payload: [0, 0],
+      };
+    }
+    
+    return {
+      code: ASYNC_EVENT_CODE.NONE,
+      payload: [0, 0],
+    };
+  }
+  
+  yieldSync(opts) {
+    throw new Error('AsyncTask#yieldSync() not implemented')
+  }
+  
+  cancel() {
+    _debugLog('[AsyncTask#cancel()] args', { });
+    if (!this.taskState() !== AsyncTask.State.CANCEL_DELIVERED) {
+      throw new Error('invalid task state for cancellation');
+    }
+    if (this.borrowedHandles.length > 0) { throw new Error('task still has borrow handles'); }
+    
+    this.#onResolve([]);
+    this.#state = AsyncTask.State.RESOLVED;
+  }
+  
+  resolve(result) {
+    if (this.#state === AsyncTask.State.RESOLVED) {
+      throw new Error('task is already resolved');
+    }
+    if (this.borrowedHandles.length > 0) { throw new Error('task still has borrow handles'); }
+    this.#onResolve(result);
+    this.#state = AsyncTask.State.RESOLVED;
+  }
+  
+  exit() {
+    // TODO: ensure there is only one task at a time (scheduler.lock() functionality)
+    if (this.#state !== AsyncTask.State.RESOLVED) {
+      throw new Error('task exited without resolution');
+    }
+    if (this.borrowedHandles > 0) {
+      throw new Error('task exited without clearing borrowed handles');
+    }
+    
+    const state = getOrCreateAsyncState(this.#componentIdx);
+    if (!state) { throw new Error('missing async state for component [' + this.#componentIdx + ']'); }
+    if (!this.#isAsync && !state.inSyncExportCall) {
+      throw new Error('sync task must be run from components known to be in a sync export call');
+    }
+    state.inSyncExportCall = false;
+    
+    this.startPendingTask();
+  }
+  
+  startPendingTask(opts) {
+    // TODO: implement
+  }
+  
+}
+
+function unpackCallbackResult(result) {
+  _debugLog('[unpackCallbackResult()] args', { result });
+  if (!(_typeCheckValidI32(result))) { throw new Error('invalid callback return value [' + result + '], not a valid i32'); }
+  const eventCode = result & 0xF;
+  if (eventCode < 0 || eventCode > 3) {
+    throw new Error('invalid async return value [' + eventCode + '], outside callback code range');
+  }
+  if (result < 0 || result >= 2**32) { throw new Error('invalid callback result'); }
+  // TODO: table max length check?
+  const waitableSetIdx = result >> 4;
+  return [eventCode, waitableSetIdx];
+}
+const ASYNC_STATE = new Map();
+
+function getOrCreateAsyncState(componentIdx, init) {
+  if (!ASYNC_STATE.has(componentIdx)) {
+    ASYNC_STATE.set(componentIdx, new ComponentAsyncState());
+  }
+  return ASYNC_STATE.get(componentIdx);
+}
+
+class ComponentAsyncState {
+  #callingAsyncImport = false;
+  #syncImportWait = Promise.withResolvers();
+  #lock = null;
+  
+  mayLeave = false;
+  waitableSets = new RepTable();
+  waitables = new RepTable();
+  
+  #parkedTasks = new Map();
+  
+  callingSyncImport(val) {
+    if (val === undefined) { return this.#callingAsyncImport; }
+    if (typeof val !== 'boolean') { throw new TypeError('invalid setting for async import'); }
+    const prev = this.#callingAsyncImport;
+    this.#callingAsyncImport = val;
+    if (prev === true && this.#callingAsyncImport === false) {
+      this.#notifySyncImportEnd();
+    }
+  }
+  
+  #notifySyncImportEnd() {
+    const existing = this.#syncImportWait;
+    this.#syncImportWait = Promise.withResolvers();
+    existing.resolve();
+  }
+  
+  async waitForSyncImportCallEnd() {
+    await this.#syncImportWait.promise;
+  }
+  
+  parkTaskOnAwaitable(args) {
+    if (!args.awaitable) { throw new TypeError('missing awaitable when trying to park'); }
+    if (!args.task) { throw new TypeError('missing task when trying to park'); }
+    const { awaitable, task } = args;
+    
+    let taskList = this.#parkedTasks.get(awaitable.id());
+    if (!taskList) {
+      taskList = [];
+      this.#parkedTasks.set(awaitable.id(), taskList);
+    }
+    taskList.push(task);
+    
+    this.wakeNextTaskForAwaitable(awaitable);
+  }
+  
+  wakeNextTaskForAwaitable(awaitable) {
+    if (!awaitable) { throw new TypeError('missing awaitable when waking next task'); }
+    const awaitableID = awaitable.id();
+    
+    const taskList = this.#parkedTasks.get(awaitableID);
+    if (!taskList || taskList.length === 0) {
+      _debugLog('[ComponentAsyncState] no tasks waiting for awaitable', { awaitableID: awaitable.id() });
+      return;
+    }
+    
+    let task = taskList.shift(); // todo(perf)
+    if (!task) { throw new Error('no task in parked list despite previous check'); }
+    
+    if (!task.awaitableResume) {
+      throw new Error('task ready due to awaitable is missing resume', { taskID: task.id(), awaitableID });
+    }
+    task.awaitableResume();
+  }
+  
+  async exclusiveLock() {  // TODO: use atomics
+  if (this.#lock === null) {
+    this.#lock = { ticket: 0n };
+  }
+  
+  // Take a ticket for the next valid usage
+  const ticket = ++this.#lock.ticket;
+  
+  _debugLog('[ComponentAsyncState#exclusiveLock()] locking', {
+    currentTicket: ticket - 1n,
+    ticket
+  });
+  
+  // If there is an active promise, then wait for it
+  let finishedTicket;
+  while (this.#lock.promise) {
+    finishedTicket = await this.#lock.promise;
+    if (finishedTicket === ticket - 1n) { break; }
+  }
+  
+  const { promise, resolve } = Promise.withResolvers();
+  this.#lock = {
+    ticket,
+    promise,
+    resolve,
+  };
+  
+  return this.#lock.promise;
+}
+
+exclusiveRelease() {
+  _debugLog('[ComponentAsyncState#exclusiveRelease()] releasing', {
+    currentTicket: this.#lock === null ? 'none' : this.#lock.ticket,
+  });
+  
+  if (this.#lock === null) { return; }
+  
+  const existingLock = this.#lock;
+  this.#lock = null;
+  existingLock.resolve(existingLock.ticket);
+}
+
+isExclusivelyLocked() { return this.#lock !== null; }
+
+}
+
+if (!Promise.withResolvers) {
+  Promise.withResolvers = () => {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+}
+
+const _debugLog = (...args) => {
+  if (!globalThis?.process?.env?.JCO_DEBUG) { return; }
+  console.debug(...args);
+}
+const ASYNC_DETERMINISM = 'random';
+const _coinFlip = () => { return Math.random() > 0.5; };
+const I32_MAX = 2_147_483_647;
+const I32_MIN = -2_147_483_648;
+const _typeCheckValidI32 = (n) => typeof n === 'number' && n >= I32_MIN && n <= I32_MAX;
+
+const base64Compile = str => WebAssembly.compile(typeof Buffer !== 'undefined' ? Buffer.from(str, 'base64') : Uint8Array.from(atob(str), b => b.charCodeAt(0)));
+
+const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+let _fs;
+async function fetchCompile (url) {
+  if (isNode) {
+    _fs = _fs || await import('node:fs/promises');
+    return WebAssembly.compile(await _fs.readFile(url));
+  }
+  return fetch(url).then(WebAssembly.compileStreaming);
+}
+
 const symbolCabiDispose = Symbol.for('cabiDispose');
 
 const symbolRscHandle = Symbol('handle');
@@ -76,29 +660,65 @@ const symbolRscRep = Symbol.for('cabiRep');
 
 const symbolDispose = Symbol.dispose || Symbol.for('dispose');
 
-const toUint64 = val => BigInt.asUintN(64, BigInt(val));
+const handleTables = [];
 
-function toUint32(val) {
-  return val >>> 0;
+function getErrorPayload(e) {
+  if (e && hasOwnProperty.call(e, 'payload')) return e.payload;
+  if (e instanceof Error) throw e;
+  return e;
 }
 
-const utf8Decoder = new TextDecoder();
-
-const utf8Encoder = new TextEncoder();
-
-let utf8EncodedLen = 0;
-function utf8Encode(s, realloc, memory) {
-  if (typeof s !== 'string') throw new TypeError('expected a string');
-  if (s.length === 0) {
-    utf8EncodedLen = 0;
-    return 1;
+class RepTable {
+  #data = [0, null];
+  
+  insert(val) {
+    _debugLog('[RepTable#insert()] args', { val });
+    const freeIdx = this.#data[0];
+    if (freeIdx === 0) {
+      this.#data.push(val);
+      this.#data.push(null);
+      return (this.#data.length >> 1) - 1;
+    }
+    this.#data[0] = this.#data[freeIdx];
+    const newFreeIdx = freeIdx << 1;
+    this.#data[newFreeIdx] = val;
+    this.#data[newFreeIdx + 1] = null;
+    return free;
   }
-  let buf = utf8Encoder.encode(s);
-  let ptr = realloc(0, 0, 1, buf.length);
-  new Uint8Array(memory.buffer).set(buf, ptr);
-  utf8EncodedLen = buf.length;
-  return ptr;
+  
+  get(rep) {
+    _debugLog('[RepTable#insert()] args', { rep });
+    const baseIdx = idx << 1;
+    const val = this.#data[baseIdx];
+    return val;
+  }
+  
+  contains(rep) {
+    _debugLog('[RepTable#insert()] args', { rep });
+    const baseIdx = idx << 1;
+    return !!this.#data[baseIdx];
+  }
+  
+  remove(rep) {
+    _debugLog('[RepTable#insert()] args', { idx });
+    if (this.#data.length === 2) { throw new Error('invalid'); }
+    
+    const baseIdx = idx << 1;
+    const val = this.#data[baseIdx];
+    if (val === 0) { throw new Error('invalid resource rep (cannot be 0)'); }
+    this.#data[baseIdx] = this.#data[0];
+    this.#data[0] = idx;
+    return val;
+  }
+  
+  clear() {
+    this.#data = [0, null];
+  }
 }
+
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+const instantiateCore = WebAssembly.instantiate;
 
 
 let exports0;
@@ -109,7 +729,11 @@ let captureCnt1 = 0;
 handleTables[1] = handleTable1;
 
 function trampoline4() {
+  _debugLog('[iface="wasi:cli/stderr@0.2.3", function="get-stderr"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'get-stderr');
   const ret = getStderr();
+  _debugLog('[iface="wasi:cli/stderr@0.2.3", function="get-stderr"] [Instruction::CallInterface] (sync, @ post-call)');
+  endCurrentTask(0);
   if (!(ret instanceof OutputStream)) {
     throw new TypeError('Resource error: Not a valid "OutputStream" resource.');
   }
@@ -119,15 +743,25 @@ function trampoline4() {
     captureTable1.set(rep, ret);
     handle0 = rscTableCreateOwn(handleTable1, rep);
   }
+  _debugLog('[iface="wasi:cli/stderr@0.2.3", function="get-stderr"][Instruction::Return]', {
+    funcName: 'get-stderr',
+    paramCount: 1,
+    postReturn: false
+  });
   return handle0;
 }
+
 const handleTable2 = [T_FLAG, 0];
 const captureTable2= new Map();
 let captureCnt2 = 0;
 handleTables[2] = handleTable2;
 
 function trampoline5() {
+  _debugLog('[iface="wasi:cli/stdin@0.2.3", function="get-stdin"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'get-stdin');
   const ret = getStdin();
+  _debugLog('[iface="wasi:cli/stdin@0.2.3", function="get-stdin"] [Instruction::CallInterface] (sync, @ post-call)');
+  endCurrentTask(0);
   if (!(ret instanceof InputStream)) {
     throw new TypeError('Resource error: Not a valid "InputStream" resource.');
   }
@@ -137,11 +771,21 @@ function trampoline5() {
     captureTable2.set(rep, ret);
     handle0 = rscTableCreateOwn(handleTable2, rep);
   }
+  _debugLog('[iface="wasi:cli/stdin@0.2.3", function="get-stdin"][Instruction::Return]', {
+    funcName: 'get-stdin',
+    paramCount: 1,
+    postReturn: false
+  });
   return handle0;
 }
 
+
 function trampoline6() {
+  _debugLog('[iface="wasi:cli/stdout@0.2.3", function="get-stdout"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'get-stdout');
   const ret = getStdout();
+  _debugLog('[iface="wasi:cli/stdout@0.2.3", function="get-stdout"] [Instruction::CallInterface] (sync, @ post-call)');
+  endCurrentTask(0);
   if (!(ret instanceof OutputStream)) {
     throw new TypeError('Resource error: Not a valid "OutputStream" resource.');
   }
@@ -151,8 +795,14 @@ function trampoline6() {
     captureTable1.set(rep, ret);
     handle0 = rscTableCreateOwn(handleTable1, rep);
   }
+  _debugLog('[iface="wasi:cli/stdout@0.2.3", function="get-stdout"][Instruction::Return]', {
+    funcName: 'get-stdout',
+    paramCount: 1,
+    postReturn: false
+  });
   return handle0;
 }
+
 
 function trampoline7(arg0) {
   let variant0;
@@ -175,14 +825,28 @@ function trampoline7(arg0) {
       throw new TypeError('invalid variant discriminant for expected');
     }
   }
+  _debugLog('[iface="wasi:cli/exit@0.2.3", function="exit"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'exit');
   exit(variant0);
+  _debugLog('[iface="wasi:cli/exit@0.2.3", function="exit"] [Instruction::CallInterface] (sync, @ post-call)');
+  endCurrentTask(0);
+  _debugLog('[iface="wasi:cli/exit@0.2.3", function="exit"][Instruction::Return]', {
+    funcName: 'exit',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 let exports2;
 let memory0;
 let realloc0;
 
 function trampoline8(arg0) {
+  _debugLog('[iface="wasi:cli/environment@0.2.3", function="get-environment"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'get-environment');
   const ret = getEnvironment();
+  _debugLog('[iface="wasi:cli/environment@0.2.3", function="get-environment"] [Instruction::CallInterface] (sync, @ post-call)');
+  endCurrentTask(0);
   var vec3 = ret;
   var len3 = vec3.length;
   var result3 = realloc0(0, 0, 4, len3 * 16);
@@ -191,16 +855,22 @@ function trampoline8(arg0) {
     const base = result3 + i * 16;var [tuple0_0, tuple0_1] = e;
     var ptr1 = utf8Encode(tuple0_0, realloc0, memory0);
     var len1 = utf8EncodedLen;
-    dataView(memory0).setInt32(base + 4, len1, true);
-    dataView(memory0).setInt32(base + 0, ptr1, true);
+    dataView(memory0).setUint32(base + 4, len1, true);
+    dataView(memory0).setUint32(base + 0, ptr1, true);
     var ptr2 = utf8Encode(tuple0_1, realloc0, memory0);
     var len2 = utf8EncodedLen;
-    dataView(memory0).setInt32(base + 12, len2, true);
-    dataView(memory0).setInt32(base + 8, ptr2, true);
+    dataView(memory0).setUint32(base + 12, len2, true);
+    dataView(memory0).setUint32(base + 8, ptr2, true);
   }
-  dataView(memory0).setInt32(arg0 + 4, len3, true);
-  dataView(memory0).setInt32(arg0 + 0, result3, true);
+  dataView(memory0).setUint32(arg0 + 4, len3, true);
+  dataView(memory0).setUint32(arg0 + 0, result3, true);
+  _debugLog('[iface="wasi:cli/environment@0.2.3", function="get-environment"][Instruction::Return]', {
+    funcName: 'get-environment',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 const handleTable0 = [T_FLAG, 0];
 const captureTable0= new Map();
 let captureCnt0 = 0;
@@ -216,11 +886,15 @@ function trampoline9(arg0, arg1) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="filesystem-error-code"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'filesystem-error-code');
   const ret = filesystemErrorCode(rsc0);
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="filesystem-error-code"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant4 = ret;
   if (variant4 === null || variant4=== undefined) {
     dataView(memory0).setInt8(arg1 + 0, 0, true);
@@ -388,7 +1062,13 @@ function trampoline9(arg0, arg1) {
     }
     dataView(memory0).setInt8(arg1 + 1, enum3, true);
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="filesystem-error-code"][Instruction::Return]', {
+    funcName: 'filesystem-error-code',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 const handleTable3 = [T_FLAG, 0];
 const captureTable3= new Map();
 let captureCnt3 = 0;
@@ -404,16 +1084,20 @@ function trampoline10(arg0, arg1, arg2) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.write-via-stream"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]descriptor.write-via-stream');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.writeViaStream(BigInt.asUintN(64, arg1))};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.write-via-stream"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant5 = ret;
   switch (variant5.tag) {
     case 'ok': {
@@ -600,7 +1284,13 @@ function trampoline10(arg0, arg1, arg2) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.write-via-stream"][Instruction::Return]', {
+    funcName: '[method]descriptor.write-via-stream',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline11(arg0, arg1) {
   var handle1 = arg0;
@@ -612,16 +1302,20 @@ function trampoline11(arg0, arg1) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.append-via-stream"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]descriptor.append-via-stream');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.appendViaStream()};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.append-via-stream"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant5 = ret;
   switch (variant5.tag) {
     case 'ok': {
@@ -808,7 +1502,13 @@ function trampoline11(arg0, arg1) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.append-via-stream"][Instruction::Return]', {
+    funcName: '[method]descriptor.append-via-stream',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline12(arg0, arg1) {
   var handle1 = arg0;
@@ -820,16 +1520,20 @@ function trampoline12(arg0, arg1) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.get-type"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]descriptor.get-type');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.getType()};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.get-type"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant5 = ret;
   switch (variant5.tag) {
     case 'ok': {
@@ -1050,7 +1754,13 @@ function trampoline12(arg0, arg1) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.get-type"][Instruction::Return]', {
+    funcName: '[method]descriptor.get-type',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline13(arg0, arg1) {
   var handle1 = arg0;
@@ -1062,16 +1772,20 @@ function trampoline13(arg0, arg1) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.stat"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]descriptor.stat');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.stat()};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.stat"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant12 = ret;
   switch (variant12.tag) {
     case 'ok': {
@@ -1325,7 +2039,13 @@ function trampoline13(arg0, arg1) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:filesystem/types@0.2.3", function="[method]descriptor.stat"][Instruction::Return]', {
+    funcName: '[method]descriptor.stat',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline14(arg0, arg1) {
   var handle1 = arg0;
@@ -1337,16 +2057,20 @@ function trampoline14(arg0, arg1) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.check-write"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]output-stream.check-write');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.checkWrite()};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.check-write"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant5 = ret;
   switch (variant5.tag) {
     case 'ok': {
@@ -1389,7 +2113,13 @@ function trampoline14(arg0, arg1) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.check-write"][Instruction::Return]', {
+    funcName: '[method]output-stream.check-write',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline15(arg0, arg1, arg2, arg3) {
   var handle1 = arg0;
@@ -1404,16 +2134,20 @@ function trampoline15(arg0, arg1, arg2, arg3) {
   var ptr3 = arg1;
   var len3 = arg2;
   var result3 = new Uint8Array(memory0.buffer.slice(ptr3, ptr3 + len3 * 1));
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.write"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]output-stream.write');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.write(result3)};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.write"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant6 = ret;
   switch (variant6.tag) {
     case 'ok': {
@@ -1455,7 +2189,13 @@ function trampoline15(arg0, arg1, arg2, arg3) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.write"][Instruction::Return]', {
+    funcName: '[method]output-stream.write',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline16(arg0, arg1) {
   var handle1 = arg0;
@@ -1467,16 +2207,20 @@ function trampoline16(arg0, arg1) {
     Object.defineProperty(rsc0, symbolRscRep, { writable: true, value: rep2});
   }
   curResourceBorrows.push(rsc0);
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.blocking-flush"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]output-stream.blocking-flush');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.blockingFlush()};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.blocking-flush"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant5 = ret;
   switch (variant5.tag) {
     case 'ok': {
@@ -1518,7 +2262,13 @@ function trampoline16(arg0, arg1) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.blocking-flush"][Instruction::Return]', {
+    funcName: '[method]output-stream.blocking-flush',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 
 function trampoline17(arg0, arg1, arg2, arg3) {
   var handle1 = arg0;
@@ -1533,16 +2283,20 @@ function trampoline17(arg0, arg1, arg2, arg3) {
   var ptr3 = arg1;
   var len3 = arg2;
   var result3 = new Uint8Array(memory0.buffer.slice(ptr3, ptr3 + len3 * 1));
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.blocking-write-and-flush"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, '[method]output-stream.blocking-write-and-flush');
   let ret;
   try {
     ret = { tag: 'ok', val: rsc0.blockingWriteAndFlush(result3)};
   } catch (e) {
     ret = { tag: 'err', val: getErrorPayload(e) };
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.blocking-write-and-flush"] [Instruction::CallInterface] (sync, @ post-call)');
   for (const rsc of curResourceBorrows) {
-    rsc[symbolRscHandle] = null;
+    rsc[symbolRscHandle] = undefined;
   }
   curResourceBorrows = [];
+  endCurrentTask(0);
   var variant6 = ret;
   switch (variant6.tag) {
     case 'ok': {
@@ -1584,10 +2338,20 @@ function trampoline17(arg0, arg1, arg2, arg3) {
       throw new TypeError('invalid variant specified for result');
     }
   }
+  _debugLog('[iface="wasi:io/streams@0.2.3", function="[method]output-stream.blocking-write-and-flush"][Instruction::Return]', {
+    funcName: '[method]output-stream.blocking-write-and-flush',
+    paramCount: 0,
+    postReturn: false
+  });
 }
 
+
 function trampoline18(arg0) {
+  _debugLog('[iface="wasi:filesystem/preopens@0.2.3", function="get-directories"] [Instruction::CallInterface] (async? sync, @ enter)');
+  const _interface_call_currentTaskID = startCurrentTask(0, false, 'get-directories');
   const ret = getDirectories();
+  _debugLog('[iface="wasi:filesystem/preopens@0.2.3", function="get-directories"] [Instruction::CallInterface] (sync, @ post-call)');
+  endCurrentTask(0);
   var vec3 = ret;
   var len3 = vec3.length;
   var result3 = realloc0(0, 0, 4, len3 * 12);
@@ -1606,12 +2370,18 @@ function trampoline18(arg0) {
     dataView(memory0).setInt32(base + 0, handle1, true);
     var ptr2 = utf8Encode(tuple0_1, realloc0, memory0);
     var len2 = utf8EncodedLen;
-    dataView(memory0).setInt32(base + 8, len2, true);
-    dataView(memory0).setInt32(base + 4, ptr2, true);
+    dataView(memory0).setUint32(base + 8, len2, true);
+    dataView(memory0).setUint32(base + 4, ptr2, true);
   }
-  dataView(memory0).setInt32(arg0 + 4, len3, true);
-  dataView(memory0).setInt32(arg0 + 0, result3, true);
+  dataView(memory0).setUint32(arg0 + 4, len3, true);
+  dataView(memory0).setUint32(arg0 + 0, result3, true);
+  _debugLog('[iface="wasi:filesystem/preopens@0.2.3", function="get-directories"][Instruction::Return]', {
+    funcName: 'get-directories',
+    paramCount: 0,
+    postReturn: false
+  });
 }
+
 let exports3;
 let realloc1;
 let postReturn0;
@@ -1667,17 +2437,31 @@ function trampoline3(handle) {
     }
   }
 }
+let exports1Greet;
 
 function greet(arg0) {
   var ptr0 = utf8Encode(arg0, realloc1, memory0);
   var len0 = utf8EncodedLen;
-  const ret = exports1.greet(ptr0, len0);
-  var ptr1 = dataView(memory0).getInt32(ret + 0, true);
-  var len1 = dataView(memory0).getInt32(ret + 4, true);
+  _debugLog('[iface="greet", function="greet"] [Instruction::CallWasm] (async? false, @ enter)');
+  const _wasm_call_currentTaskID = startCurrentTask(0, false, 'exports1Greet');
+  const ret = exports1Greet(ptr0, len0);
+  endCurrentTask(0);
+  var ptr1 = dataView(memory0).getUint32(ret + 0, true);
+  var len1 = dataView(memory0).getUint32(ret + 4, true);
   var result1 = utf8Decoder.decode(new Uint8Array(memory0.buffer, ptr1, len1));
-  const retVal = result1;
+  _debugLog('[iface="greet", function="greet"][Instruction::Return]', {
+    funcName: 'greet',
+    paramCount: 1,
+    postReturn: true
+  });
+  const retCopy = result1;
+  
+  let cstate = getOrCreateAsyncState(0);
+  cstate.mayLeave = false;
   postReturn0(ret);
-  return retVal;
+  cstate.mayLeave = true;
+  return retCopy;
+  
 }
 
 const $init = (() => {
@@ -1764,6 +2548,7 @@ const $init = (() => {
     }));
     realloc1 = exports1.cabi_realloc;
     postReturn0 = exports1.cabi_post_greet;
+    exports1Greet = exports1.greet;
   })();
   let promise, resolve, reject;
   function runNext (value) {

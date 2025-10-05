@@ -47,23 +47,31 @@ github.com/superchris
 
 ---
 
+<!-- _footer: '![](images/full-color.png)' -->
+
 # What is WebAssembly?
-- VM instruction format
-- Near-native execution speed
-- Memory-safe, sandboxed execution environment
-- Designed as a compilation target for languages like C, C++, Rust
-- Started in the browser, but growing usage on the server
-- Platform and language independent
+- A binary instruction format for a stack-based virtual machine
+- Portable compilation target for programming languages
+- Supported by all three browsers since 2017
+- WASI standardizes server side WebAssembly since 2019
 
 ---
 
-# WebAssembly Core (1.0)
-- Supports only numeric types
+<!-- _footer: '![](images/full-color.png)' -->
+
+# WebAssembly Core (3.0)
+- Supports only:
+  - numeric types
+  - functions
+  - linear memory
+  - external references
 - Linear memory
   - Your job to manage
   - Your job to figure out what to put there
 
 ---
+
+<!-- _footer: '![](images/full-color.png)' -->
 
 # Saying hello from WebAssembly
 - Let's allocate some shared memory
@@ -73,8 +81,11 @@ github.com/superchris
 
 ---
 
+<!-- _footer: '![](images/full-color.png)' -->
+
 # WebAssembly Components
-- Higher-level abstraction on top of core WebAssembly
+- Higher-level abstraction layer on top of core WebAssembly
+- Emerged out of WASI (P2)
 - Enables language-agnostic type system
 - Establishes canonical ABI
   - how to map high level types to memory
@@ -82,10 +93,13 @@ github.com/superchris
 
 ---
 
+<!-- _footer: '![](images/full-color.png)' -->
+
 # WIT (WebAssembly Interface Types)
 - Interface Definition Language
 - Describes components' interfaces
-- Defines data types and functions
+- Function imports and exports
+- User defined data types
 
 ---
 
@@ -122,18 +136,6 @@ github.com/superchris
 - Moonbit
 - Elixir (host only)
 - Ruby (host only)
-
----
-
-# Definitions
-- **bindings** - language specific stubs generated from WIT
-- **exports** - functions that a component provides
-- **imports** - functions that a component can call
-- **Hosts** - Code which calls into webassembly components
-- **Guests** - Code which produces webassembly components to be called from Hosts
-- **Runtimes** - Provides all required services to access the outside world
-  - browser (jco)
-  - server (wasmtime)
 
 ---
 
@@ -192,19 +194,34 @@ cargo component build
 - javascript toolchain for WebAssembly Component runtime
 - handles both hosting and guesting
 - `jco componentize` creates guest components from javascript
-- `jco transpile` creates an ES module wrapper to host a component
+- `jco transpile` creates an ES module wrapper for our component
 
+---
+# Using our wrapper in the browser
+```html
+<head>
+  <script type="importmap">
+    ...
+  </script>
+  <script type="module">
+    import { greet } from './hello-world/hello_world.js';
+    document.getElementById('greeting').innerHTML = greet("World");
+  </script>
+</head>
+
+<body>
+  <h1 id="greeting"></h1>
+</body>
+```
 ---
 
 # [Demo time!](./demo1.html)
-- change some code
-- run our build
-- show the html
-- see it in the browser
+- change some code in `hello-world/src/lib.rs`
+- run build.sh
 
 ---
 
-# Let's talk imports
+# WASM Component imports
 ## Where do they come from?
 - Provided by host
 - Provided by another component
@@ -235,14 +252,7 @@ world additional-greeting {
 ---
 
 # Implementing `additional-greeting` in Go
-### Generating bindings
-```sh
-wkg wit fetch
-wkg wit build
-go tool wit-bindgen-go generate --world additional-greeting --out internal ./local:additional-greeting@0.0.1.wasm
-```
 
----
 ```golang
 package main
 
@@ -258,6 +268,28 @@ func init() {
 
 func main() {}
 ```
+
+---
+# Our Rust component, now calling an import
+```rust
+#[allow(warnings)]
+mod bindings;
+
+use bindings::Guest;
+use bindings::additional_greeting;
+
+struct Component;
+
+impl Guest for Component {
+    /// Say hello!
+    fn greet(greetee: String) -> String {
+        format!("Hello from Rust, {} and {}!", greetee, additional_greeting())
+    }
+}
+
+bindings::export!(Component with_types_in bindings);
+
+```
 ---
 
 # WAC - A tool for composing WebAssembly Components
@@ -269,11 +301,14 @@ func main() {}
 
 ---
 
-# Composition [demo](demo2.html)
-- change some go
-- build
-- change some rust
-- build
+# A component turducken [demo](demo2.html)
+- Make a change in `additional-greeting/main.go`
+- Run `additional-greeting/build.sh`
+  - builds the go component
+- Run `composed-hello-world/build.sh`
+  - builds the rust wrapper component
+  - runs wac to build the composed component
+
 ---
 
 # But I thought you said "Beyond the Browser"
@@ -399,6 +434,8 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
+<!-- _footer: '![](images/full-color.png)' -->
+
 # Let's add custom shipping calculation
 - We want to see the result immediately on the order screen
 - Latency is a problem
@@ -406,29 +443,74 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
+<!-- _footer: '![](images/full-color.png)' -->
+
 # A shipping calculator WebAssembly component
-- create our WIT
-- implement our component
-- call it from our SAAS
-  - requires a runtime (wasmex)
+```wit
+package wasm:commerce;
+
+world shipping-calculator-component {
+
+  export calculate-shipping: func(order: order) -> u32;
+
+  record order {
+    id: u32,
+    customer: customer,
+    status: string,
+    total-cents: u32,  // in cents
+    line-items: list<line-item>
+  }
+
+  record customer {
+    id: u32,
+    name: string,
+    email: string,
+    phone: string,
+    address: string,
+    city: string,
+    state: string,
+    zip: string
+  }
+```
 
 ---
 
-# Let's see!
+<!-- _footer: '![](images/full-color.png)' -->
+
+# Continued...
+
+```wit
+  record line-item {
+    product-id: u32,
+    product: product,
+    quantity: u32,
+    unit-price-cents: u32,  // in cents
+    subtotal-cents: u32     // in cents
+  }
+
+  record product {
+    id: u32,
+    name: string,
+    sku: string,
+    price-cents: u32  // in cents
+  }
+
+}
+```
 
 ---
 
-# Exercises left for the reader
-- Customers providing the component
-  - upload or CLI tool
-- Fetching and loading component instances per customer
+# Let's try it!
 
 ---
 
-# Use case #2: Replacing containers
-- Containers are portable, which is great
-- They bundle an OS, which is not great
-- And also makes em slow to start
+# Use case #2: Wassette
+- Open source MCP server from Microsoft
+- Add tools as WASM components
+
+---
+
+# Let's teach Claude to generate a QR code!
 
 ---
 
@@ -472,9 +554,4 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
   - everybody is blocked
 - future, stream
 
----
-
-# Questions
-
-![h:500](/images/qrcode.png)
 ---

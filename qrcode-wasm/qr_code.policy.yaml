@@ -1,0 +1,23 @@
+version: "1.0"
+description: "Security policy for QR code generator component with file save capability"
+
+permissions:
+  # File system access for saving generated QR codes
+  storage:
+    allow:
+      # Default output directory - user's Downloads folder
+      # NOTE: Update 'brian' to your username or use /tmp/qr-output instead
+      - uri: "fs:///home/brian/Downloads"
+        access: ["read", "write"]
+      # Alternative output location (recommended for portability)
+      - uri: "fs:///tmp/qr-output"
+        access: ["read", "write"]
+  
+  # Environment variable to override output directory
+  environment:
+    allow:
+      - key: "QR_OUTPUT_DIR"
+  
+  # Allow stderr for debug output during development
+  stdio:
+    stderr: true

@@ -2,7 +2,9 @@ module additionalgreeting
 
 tool go.bytecodealliance.org/cmd/wit-bindgen-go
 
-go 1.24.2
+go 1.25
+
+require go.bytecodealliance.org/cm v0.2.2
 
 require (
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -15,7 +17,6 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/urfave/cli/v3 v3.0.0-beta1 // indirect
 	go.bytecodealliance.org v0.6.2 // indirect
-	go.bytecodealliance.org/cm v0.2.2 // indirect
 	golang.org/x/mod v0.23.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 )
