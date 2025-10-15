@@ -52,6 +52,7 @@ github.com/superchris
 # What is WebAssembly?
 - A binary instruction format for a stack-based virtual machine
 - Portable compilation target for programming languages
+- Standardized by W3C
 - Supported by all three browsers since 2017
 - WASI standardizes server side WebAssembly since 2019
 
@@ -65,6 +66,7 @@ github.com/superchris
   - functions
   - linear memory
   - external references
+  - strings (javascript only)
 - Linear memory
   - Your job to manage
   - Your job to figure out what to put there
@@ -73,10 +75,10 @@ github.com/superchris
 
 <!-- _footer: '![](images/full-color.png)' -->
 
-# Saying hello from WebAssembly
+# Complex data types in WebAssembly
 - Let's allocate some shared memory
-- passing pointers and offsets and lengths, oh my!
-- oh yeah, we should figure out what encoding to use
+- Let's figure out how we wanna encode it
+- Passing pointers and offsets and lengths, oh my!
 - Are you sad yet?
 
 ---
@@ -93,6 +95,15 @@ github.com/superchris
 
 ---
 
+# WASM Component Glossary
+
+## Hosts
+Runtime environment that provides services and executes a WASM component
+## Guests
+The component itselt that is "hosted" by a runtime environment
+
+---
+
 <!-- _footer: '![](images/full-color.png)' -->
 
 # WIT (WebAssembly Interface Types)
@@ -106,8 +117,8 @@ github.com/superchris
 # WIT structure
 - package - top level container of the form `namespace:name@version` 
 - worlds - specifies the "contract" for a component and contains
-  - exports - functions (or interfaces) provided by a component
-  - imports - functions (or interfaces) provided by a component
+  - exports - functions (or interfaces) provided **by** a component
+  - imports - functions (or interfaces) provided **to** a component
 - interfaces - named group of types and functions
 - types
 
@@ -118,7 +129,7 @@ github.com/superchris
   - u8, u16, u32, u64, s8, s16, s32, s64, f32, f64
   - bool, char, string
 - Compound types
-  - lists, options, results, tuples
+  - lists, tuples, options, results
 - User Defined Types
   - records, variants, enums, flags, 
 - Resources
@@ -133,7 +144,7 @@ github.com/superchris
 - C# (.NET)
 - Go
 - Python
-- Moonbit
+- Moonbit, Grain
 - Elixir (host only)
 - Ruby (host only)
 
@@ -190,7 +201,7 @@ cargo component build
 
 ---
 
-# Webcomponents in the browser with jco
+# WASM Components in the browser with jco
 - javascript toolchain for WebAssembly Component runtime
 - handles both hosting and guesting
 - `jco componentize` creates guest components from javascript
@@ -301,7 +312,7 @@ bindings::export!(Component with_types_in bindings);
 
 ---
 
-# A component turducken [demo](demo2.html)
+# A component [turducken](demo2.html)
 - Make a change in `additional-greeting/main.go`
 - Run `additional-greeting/build.sh`
   - builds the go component
@@ -338,10 +349,10 @@ bindings::export!(Component with_types_in bindings);
 ---
 
 # WASI Security Model
-
-- Capability-based security: explicit permissions
-- no priviliges are the default
-- granting permissions is runtime specific
+- Zero priviliges are the default
+  - Component can only call imports
+- Capability-based security: explicit permissions to allow imports
+- Granting permissions is runtime specific
 
 ---
 
@@ -398,9 +409,9 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 
 ---
 
-# Hello server
+# Hello [server](http://localhost:8081)
 - change some code
-- run it
+- Run start.sh
 
 ---
 
@@ -421,6 +432,7 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for Component {
 # Problems
 - Latency
 - Complexity
+- Security
 - Documentation
 - Language choice
 
@@ -505,12 +517,16 @@ world shipping-calculator-component {
 ---
 
 # Let's try it!
+- edit shipping-calculator.js
+- run build.sh
+- upload it in the admin
 
 ---
 
 # Use case #2: Wassette
 - Open source MCP server from Microsoft
 - Add tools as WASM components
+- Leverage the WASM security sandbox
 
 ---
 
@@ -532,6 +548,8 @@ world qr-code {
 ---
 
 # Let's add a QR Code
+- fire up claude
+- ask them to add a QR code to my slides
 
 ---
 
